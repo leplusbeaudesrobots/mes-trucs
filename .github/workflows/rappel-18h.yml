@@ -1,0 +1,56 @@
+# Envoie chaque soir vers 18h (heure de Paris) un signal vide au téléphone.
+# Le téléphone choisit lui-même la tâche à afficher : aucune tâche ne passe par GitHub.
+# Secrets à créer (Settings, Secrets and variables, Actions) : VAPID_PRIVATE_KEY et PUSH_SUBSCRIPTION.
+name: Rappel de 18h
+
+on:
+  schedule:
+    - cron: '52 15 * * *'   # 17h52 à Paris l'été (UTC+2)
+    - cron: '52 16 * * *'   # 17h52 à Paris l'hiver (UTC+1)
+  workflow_dispatch:        # bouton « Run workflow » pour tester
+
+permissions:
+  actions: write            # pour garder le rappel actif (GitHub coupe les tâches planifiées après 60 jours sans activité)
+
+jobs:
+  rappel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bon créneau selon l'heure d'été ou d'hiver ?
+        id: creneau
+        run: |
+          offset=$(TZ=Europe/Paris date +%z)
+          case "${{ github.event.schedule }}:$offset" in
+            "":*|"52 15 * * *:+0200"|"52 16 * * *:+0100") echo "go=oui" >> "$GITHUB_OUTPUT" ;;
+            *) echo "go=non" >> "$GITHUB_OUTPUT"; echo "Pas le bon créneau aujourd'hui ($offset)." ;;
+          esac
+
+      - name: Envoyer le signal
+        if: steps.creneau.outputs.go == 'oui'
+        env:
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          PUSH_SUBSCRIPTION: ${{ secrets.PUSH_SUBSCRIPTION }}
+        run: |
+          if [ -z "$VAPID_PRIVATE_KEY" ] || [ -z "$PUSH_SUBSCRIPTION" ]; then
+            echo "::error::Secrets manquants : VAPID_PRIVATE_KEY et PUSH_SUBSCRIPTION"; exit 1
+          fi
+          npm install --no-save --silent web-push@3.6.7
+          node -e '
+            const wp = require("web-push");
+            wp.setVapidDetails("https://leplusbeaudesrobots.github.io/mes-trucs/",
+              "BHbhhF3hPD7ZntGN8L4N0CdwZUw8XNneOCwMo6JiUBC_0Y3c9HS41qujO5rV68pn-nwLb0XJzpA7izMWbx9O9_M",
+              process.env.VAPID_PRIVATE_KEY);
+            wp.sendNotification(JSON.parse(process.env.PUSH_SUBSCRIPTION), "", { TTL: 3 * 3600, urgency: "high" })
+              .then(r => console.log("Envoyé :", r.statusCode))
+              .catch(e => {
+                console.error("Échec :", e.statusCode, e.body);
+                if (e.statusCode === 404 || e.statusCode === 410)
+                  console.error("::error::Abonnement expiré : dans l’appli, menu ⋯, Rappel de 18h, puis recolle le code dans PUSH_SUBSCRIPTION.");
+                process.exit(1);
+              });'
+
+      - name: Garder le rappel actif
+        if: steps.creneau.outputs.go == 'oui'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/rappel-18h.yml/enable" || true

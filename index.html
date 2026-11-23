@@ -117,6 +117,11 @@ textarea.field{min-height:110px;resize:vertical}
 .btn.split{background:var(--today)}
 .btn.cal{background:var(--tomorrow)}
 .btn.del{background:transparent;color:var(--late-ink)!important}
+.notif-box{background:var(--bg);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.notif-box[hidden]{display:none}
+.notif-box p,.notif-box ol{margin:0}
+.notif-box ol{padding-left:20px}
+#subOut{min-height:70px;font-size:12px;font-family:ui-monospace,monospace}
 .split-box{display:none;background:#fff;border-radius:var(--radius);padding:12px}
 .split-box.open{display:block}
 .split-box p{margin:0 0 8px;font-size:14px}
@@ -169,6 +174,17 @@ textarea.field{min-height:110px;resize:vertical}
     <button class="btn" id="exportBtn" type="button">💾 Sauvegarder (Drive, mail…)</button>
     <label class="btn" for="importFile">📂 Restaurer une sauvegarde<input type="file" id="importFile" accept="application/json,.json" hidden></label>
     <div class="note" id="backupNote"></div>
+    <button class="btn" id="notifBtn" type="button">🔔 Rappel de 18h</button>
+    <div class="notif-box" id="notifBox" hidden>
+      <p class="note">Une notification vers 18h avec ton truc du soir. Réglage à faire une seule fois :</p>
+      <ol class="note steps">
+        <li>Copie ce code.</li>
+        <li>Sur GitHub : dépôt <b>mes-trucs</b>, Settings, Secrets and variables, Actions, <b>New repository secret</b>.</li>
+        <li>Nom : <b>PUSH_SUBSCRIPTION</b>, colle le code, Add secret.</li>
+      </ol>
+      <textarea id="subOut" class="field" readonly aria-label="Code d'abonnement"></textarea>
+      <div class="two"><div><button class="btn" id="subCopy" type="button">📋 Copier</button></div><div><button class="btn" id="notifTest" type="button">Tester</button></div></div>
+    </div>
   </div>
   <main id="list"></main>
 </div>
@@ -330,7 +346,7 @@ function labelDate(t){
 const isStuck=t=>!t.done&&!t.idea&&((t.due&&daysFromToday(t.due)<=-3)||(t.moves||0)>=3);
 
 /* ---------- stockage + annuler ---------- */
-function save(){ if(storageBroken) return; try{ localStorage.setItem(LS_KEY,JSON.stringify(tasks)); localStorage.setItem(LS_META,JSON.stringify(meta)); }catch(e){ toast('Impossible d’enregistrer. Fais une sauvegarde depuis le menu ⋯.'); } }
+function save(){ if(storageBroken) return; try{ localStorage.setItem(LS_KEY,JSON.stringify(tasks)); localStorage.setItem(LS_META,JSON.stringify(meta)); mirror(); }catch(e){ toast('Impossible d’enregistrer. Fais une sauvegarde depuis le menu ⋯.'); } }
 // Remet chaque tâche d'aplomb (vieux format, sauvegarde abîmée) pour que l'affichage ne plante jamais
 const ISO_RE=/^\d{4}-\d{2}-\d{2}$/, TIME_RE=/^\d{2}:\d{2}$/;
 function cleanTask(t){
@@ -644,6 +660,39 @@ $('#installBtn').onclick=async()=>{ if(!installEvt) return; installEvt.prompt();
 window.addEventListener('appinstalled',()=>{ $('#installBtn').hidden=true; toast('Appli installée ✓'); });
 
 
+/* ---------- rappel de 18h ---------- */
+// Le service worker ne lit pas le localStorage : on lui tient une copie des tâches dans IndexedDB.
+// Les boutons de la notification (Fait, Demain) laissent des actions en attente, appliquées ici.
+const VAPID_PUBLIC='BHbhhF3hPD7ZntGN8L4N0CdwZUw8XNneOCwMo6JiUBC_0Y3c9HS41qujO5rV68pn-nwLb0XJzpA7izMWbx9O9_M';
+function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open('mes-trucs',1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function idbGet(k){ const db=await idb(); return new Promise(res=>{ const q=db.transaction('kv').objectStore('kv').get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>res(undefined); }); }
+async function idbSet(k,v){ const db=await idb(); return new Promise(res=>{ const tx=db.transaction('kv','readwrite'); tx.objectStore('kv').put(v,k); tx.oncomplete=tx.onerror=()=>res(); }); }
+function mirror(){ try{ if(window.indexedDB) idbSet('tasks',JSON.stringify(tasks)).catch(()=>{}); }catch(e){} }
+async function applyPending(){
+  let ops; try{ ops=await idbGet('pending'); }catch(e){ return; }
+  if(!ops||!ops.length) return;
+  await idbSet('pending',[]);
+  let n=0;
+  for(const op of ops){ const t=tasks[op.id]; if(!t||t.done) continue;
+    if(op.type==='done'){ t.done=true; t.doneAt=op.at||Date.now(); n++; }
+    if(op.type==='tomorrow'&&op.due){ setDue(t,op.due); t.time=null; n++; } }
+  if(n){ save(); if(!editingId) render(); }
+}
+const b64u=s=>{ const p='='.repeat((4-s.length%4)%4), b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b,c=>c.charCodeAt(0)); };
+$('#notifBtn').onclick=async()=>{
+  if(!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window)){ toast('Ce navigateur ne gère pas les notifications. Installe l’appli depuis Chrome.'); return; }
+  const perm=await Notification.requestPermission();
+  if(perm!=='granted'){ toast('Notifications bloquées : Paramètres Android, Applis, Mes trucs, Notifications'); return; }
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const sub=(await reg.pushManager.getSubscription())||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID_PUBLIC)});
+    $('#subOut').value=JSON.stringify(sub); $('#notifBox').hidden=false; mirror();
+  }catch(e){ toast('Abonnement impossible. Réessaie avec du réseau.'); }
+};
+$('#subCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText($('#subOut').value); toast('Copié ✓'); }catch(e){ $('#subOut').select(); toast('Sélectionné : copie-le à la main'); } };
+$('#notifTest').onclick=async()=>{ try{ const reg=await navigator.serviceWorker.ready; mirror(); setTimeout(()=>reg.active.postMessage({type:'test'}),300); toast('Regarde tes notifications'); }catch(e){ toast('Test impossible'); } };
+if('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message',e=>{ if(e.data&&e.data.type==='pending') applyPending(); });
+
 /* ---------- ajout rapide (raccourcis) ---------- */
 function setQ(w){
   qWhen=w;
@@ -701,11 +750,11 @@ $('#toastUndo').onclick=()=>{ $('#toast').classList.remove('show'); undo(); };
 
 /* ---------- démarrage ---------- */
 function setDateNow(){ const d=new Date(); $('#dateNow').textContent=cap(JOURS[d.getDay()])+' '+d.getDate()+' '+MOIS[d.getMonth()]; }
-load(); save(); setDateNow(); updateHint(); render();
+load(); save(); setDateNow(); updateHint(); render(); applyPending().catch(()=>{});
 if(storageBroken) toast('Mémoire du téléphone pleine : fais une sauvegarde depuis ⋯');
 let lastDay=iso(today0());
 function refresh(){ if(iso(today0())!==lastDay){ lastDay=iso(today0()); skipped=[]; } setDateNow(); if(!editingId) render(); }
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refresh(); });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ refresh(); applyPending().catch(()=>{}); } });
 setInterval(()=>{ if(!document.hidden&&iso(today0())!==lastDay) refresh(); },60000); // passage de minuit appli ouverte
 // L'appli ouverte ailleurs (onglet Chrome + appli installée) : on recharge au lieu d'écraser
 window.addEventListener('storage',e=>{ if(e.key===LS_KEY||e.key===LS_META){ load(); if(!editingId) render(); } });
