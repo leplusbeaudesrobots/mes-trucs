@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<title>Mes trucs à faire</title>
+<meta name="theme-color" content="#FFF6E9">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FFF6E9; --ink:#1E1B2E; --muted:#6A6478; --card:#FFFFFF; --line:#E7DFD2;
+  --late:#FF5A4E; --late-ink:#C42E24; --today:#FFC531; --tomorrow:#3DD6A3; --week:#7C8CFF; --later:#C77DFF; --nodate:#948DA6; --idea:#FF9F5A;
+  --radius:18px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,sans-serif}
+body{min-height:100vh;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--week);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.wrap{max-width:560px;margin:0 auto;padding:18px 16px 210px}
+
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:8px 0 16px}
+h1{font-size:34px;line-height:1;margin:0;font-weight:800;letter-spacing:-.02em}
+h1 span{display:inline-block;background:var(--today);padding:0 8px;border-radius:10px;transform:rotate(-2deg)}
+.date-now{color:var(--muted);font-size:14px;margin-top:6px}
+.head-right{display:flex;gap:8px;align-items:center}
+.count{font-weight:800;font-size:14px;background:var(--ink);color:#fff;border-radius:999px;padding:7px 12px;white-space:nowrap}
+.menu-btn{width:44px;height:44px;border-radius:50%;border:0;background:#fff;font-size:20px;font-weight:800;cursor:pointer;box-shadow:0 2px 0 rgba(30,27,46,.06)}
+.menu{display:none;flex-direction:column;gap:8px;background:#fff;border-radius:var(--radius);padding:12px;margin:-4px 0 18px}
+.menu.open{display:flex}
+.menu .btn{background:var(--bg);justify-content:flex-start}
+.menu .btn.install{background:var(--today)}
+.note{font-size:13px;color:var(--muted);line-height:1.35}
+.note.warn{color:var(--late-ink);font-weight:700}
+
+/* focus "maintenant" */
+.focus{background:var(--ink);color:#fff;border-radius:24px;padding:16px 16px 14px;margin-bottom:22px;position:relative;overflow:hidden}
+.focus .eyebrow{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--today)}
+.focus .f-title{font-size:24px;font-weight:800;line-height:1.15;margin:6px 0 4px;word-wrap:break-word;cursor:pointer}
+.focus .f-meta{font-size:13px;color:#C9C3D8}
+.focus .f-btns{display:flex;gap:8px;margin-top:14px}
+.focus .f-btns button{flex:1;border:0;border-radius:14px;padding:13px 10px;font-weight:800;font-size:15px;cursor:pointer;min-height:48px}
+.f-done{background:var(--today);color:var(--ink)!important}
+.f-skip{background:#34304A;color:#fff!important}
+.focus .f-left{font-size:12px;color:#A9A3BC;margin-top:10px}
+.nudge{display:flex;align-items:center;gap:10px;background:#fff;border:2px dashed var(--line);border-radius:var(--radius);padding:10px 10px 10px 14px;margin-bottom:18px;font-size:14px}
+.nudge span{flex:1}
+.nudge button{border:0;border-radius:999px;min-height:40px;padding:0 14px;font-weight:800;cursor:pointer;background:var(--today)}
+.nudge button.later{background:transparent;color:var(--muted)!important;padding:0 8px}
+.cheer{background:var(--tomorrow);color:var(--ink);border-radius:24px;padding:18px;margin-bottom:22px;font-weight:700}
+.cheer b{display:block;font-size:22px;font-weight:800}
+
+section.group{margin-bottom:20px}
+.g-head{display:flex;align-items:center;gap:8px;margin:0 0 8px 2px;font-weight:800;font-size:15px}
+.g-head .dot{width:12px;height:12px;border-radius:50%}
+.g-head .n{color:var(--muted);font-weight:500}
+ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+li.task{display:flex;align-items:center;gap:6px;background:var(--card);border-radius:var(--radius);padding:6px 12px 6px 6px;border-left:6px solid var(--c);box-shadow:0 2px 0 rgba(30,27,46,.06);transition:transform .25s,opacity .3s;min-height:60px}
+li.task.pop{animation:pop .45s ease}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.04) rotate(-1deg)}100%{transform:scale(1)}}
+li.task.leaving{opacity:0;transform:translateX(40px) rotate(3deg)}
+.check{flex:none;width:48px;height:48px;border:0;background:transparent;cursor:pointer;display:grid;place-items:center;padding:0}
+.check i{width:28px;height:28px;border-radius:50%;border:3px solid var(--c);display:grid;place-items:center}
+.check svg{opacity:0;transition:opacity .15s}
+li.done .check i{background:var(--c)}
+li.done .check svg{opacity:1}
+.t-body{flex:1;min-width:0;cursor:pointer;padding:8px 0;background:none;border:0;text-align:left}
+.t-title{font-size:17px;font-weight:500;word-wrap:break-word;display:block}
+li.done .t-title{text-decoration:line-through;color:var(--muted)}
+.t-meta{font-size:13px;color:var(--muted);margin-top:2px;display:block}
+.stuck{display:inline-block;margin-top:5px;font-size:12px;font-weight:800;background:#FFE3E0;color:var(--late-ink);border-radius:999px;padding:3px 9px}
+.empty{text-align:center;padding:36px 20px;color:var(--muted)}
+.empty b{display:block;font-size:44px;margin-bottom:6px}
+.fold{display:flex;align-items:center;justify-content:space-between}
+.fold-btn{background:none;border:0;font-weight:800;color:var(--muted);padding:12px 2px;cursor:pointer;font-size:15px}
+.link-btn{background:none;border:0;color:var(--late-ink)!important;font-size:13px;cursor:pointer;padding:12px 2px;font-weight:700}
+
+/* barre d'ajout */
+.composer{position:fixed;left:0;right:0;bottom:0;background:var(--ink);padding:12px 14px calc(12px + env(safe-area-inset-bottom));border-radius:24px 24px 0 0;box-shadow:0 -6px 24px rgba(30,27,46,.18);z-index:10}
+.composer .inner{max-width:560px;margin:0 auto}
+.row{display:flex;gap:8px}
+#newTitle{flex:1;font:inherit;font-size:17px;border:0;border-radius:14px;padding:14px;background:#fff;color:var(--ink);min-width:0}
+#newTitle:focus{outline:3px solid var(--today)}
+#addBtn{flex:none;width:52px;border:0;border-radius:14px;background:var(--today);font-size:28px;font-weight:800;color:var(--ink);cursor:pointer}
+#addBtn:active{transform:scale(.94)}
+.chips{display:flex;gap:6px;margin-top:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;font-size:14px;font-weight:700;border:2px solid #5A5570;color:#fff!important;background:transparent;border-radius:999px;padding:0 13px;min-height:40px;display:inline-flex;align-items:center;cursor:pointer;position:relative}
+.chip[aria-pressed="true"]{background:#fff;color:var(--ink)!important;border-color:#fff}
+.chip input{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}
+.hint{color:#C9C3D8;font-size:13px;margin-top:8px;min-height:17px}
+.hint b{color:var(--today)}
+
+/* fiche */
+.sheet-bg{position:fixed;inset:0;background:rgba(30,27,46,.45);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+.sheet-bg.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-radius:26px 26px 0 0;padding:14px 18px calc(18px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.9,.3,1.1),visibility .28s;z-index:21;max-width:560px;margin:0 auto;max-height:92vh;overflow-y:auto;visibility:hidden}
+.sheet.open{transform:none;visibility:visible}
+.sheet-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.grab{width:44px;height:5px;background:#D9D2E3;border-radius:9px;margin:0 auto 10px}
+.sheet h2{font-size:15px;margin:0;color:var(--muted)}
+.ok-btn{border:0;background:var(--ink);color:#fff!important;font-weight:800;border-radius:999px;padding:0 18px;min-height:44px;cursor:pointer}
+.sheet label{display:block;font-size:13px;font-weight:700;color:var(--muted);margin:12px 0 6px}
+.field{width:100%;font:inherit;font-size:17px;border:2px solid var(--line);border-radius:14px;padding:12px;background:#fff;color:var(--ink)}
+textarea.field{min-height:110px;resize:vertical}
+.two{display:flex;gap:10px}.two>div{flex:1;min-width:0}
+.qchips{display:flex;gap:6px;flex-wrap:wrap}
+.qchip{border:2px solid var(--line);background:#fff;border-radius:999px;padding:0 12px;min-height:40px;font-weight:700;font-size:14px;cursor:pointer}
+.qchip[aria-pressed="true"]{background:var(--ink);color:#fff!important;border-color:var(--ink)}
+.btns{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.btn{font-weight:700;font-size:15px;border:0;border-radius:14px;padding:0 14px;min-height:48px;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--ink);background:#fff}
+.btn.split{background:var(--today)}
+.btn.cal{background:var(--tomorrow)}
+.btn.del{background:transparent;color:var(--late-ink)!important}
+.split-box{display:none;background:#fff;border-radius:var(--radius);padding:12px}
+.split-box.open{display:block}
+.split-box p{margin:0 0 8px;font-size:14px}
+
+.toast{position:fixed;left:50%;bottom:180px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:6px 6px 6px 16px;border-radius:999px;font-size:14px;opacity:0;transition:.25s;z-index:30;pointer-events:none;display:flex;align-items:center;gap:10px;white-space:nowrap;max-width:92vw}
+.toast.show{opacity:1;transform:translateX(-50%);pointer-events:auto}
+.toast button{border:0;background:var(--today);color:var(--ink)!important;font-weight:800;border-radius:999px;padding:0 14px;min-height:36px;cursor:pointer}
+.toast button[hidden]{display:none}
+.toast span{padding:6px 10px 6px 0}
+.confetti{position:fixed;width:9px;height:9px;border-radius:2px;pointer-events:none;z-index:40}
+
+/* ajout rapide (raccourcis de l'écran d'accueil) */
+.quick{position:fixed;inset:0;background:var(--ink);color:#fff;z-index:50;display:flex;flex-direction:column;padding:calc(16px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));overflow-y:auto}
+.quick[hidden]{display:none}
+.q-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.q-top h2{margin:0;font-size:26px;font-weight:800}
+.q-top h2 span{background:var(--today);color:var(--ink);padding:0 7px;border-radius:9px;display:inline-block;transform:rotate(-2deg)}
+.q-close{border:0;background:#34304A;color:#fff!important;border-radius:999px;min-height:44px;padding:0 16px;font-weight:700;cursor:pointer}
+#qTitle{width:100%;font:inherit;font-size:22px;border:0;border-radius:18px;padding:18px 16px;background:#fff;color:var(--ink)}
+#qTitle:focus{outline:4px solid var(--today)}
+.q-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.q-chip{border:2px solid #5A5570;background:transparent;color:#fff!important;border-radius:18px;min-height:60px;font-size:17px;font-weight:800;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;gap:6px}
+.q-chip[aria-pressed="true"]{background:#fff;color:var(--ink)!important;border-color:#fff}
+.q-chip input{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}
+.q-hint{color:#C9C3D8;font-size:14px;margin:12px 2px 0;min-height:19px}
+.q-hint b{color:var(--today)}
+.q-add{margin-top:16px;border:0;border-radius:18px;background:var(--today);color:var(--ink)!important;font-size:19px;font-weight:800;min-height:62px;cursor:pointer}
+.q-add:active{transform:scale(.98)}
+.q-done{margin-top:18px;font-size:14px;color:#C9C3D8}
+.q-done li{padding:4px 0}
+.q-done li::before{content:"✓ ";color:var(--tomorrow);font-weight:800}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Mes <span>trucs</span></h1>
+      <div class="date-now" id="dateNow"></div>
+    </div>
+    <div class="head-right">
+      <div class="count" id="count">0 à faire</div>
+      <button class="menu-btn" id="menuBtn" aria-label="Menu : installer, sauvegarder" aria-expanded="false" aria-controls="menu">⋯</button>
+    </div>
+  </header>
+  <div class="menu" id="menu">
+    <button class="btn install" id="installBtn" type="button" hidden>📲 Installer l'appli</button>
+    <button class="btn" id="quickBtn" type="button">⚡ Écran d'ajout rapide</button>
+    <button class="btn" id="exportBtn" type="button">💾 Sauvegarder (Drive, mail…)</button>
+    <label class="btn" for="importFile">📂 Restaurer une sauvegarde<input type="file" id="importFile" accept="application/json,.json" hidden></label>
+    <div class="note" id="backupNote"></div>
+  </div>
+  <main id="list"></main>
+</div>
+
+<form class="composer" id="composer" autocomplete="off">
+  <div class="inner">
+    <div class="row">
+      <label for="newTitle" class="sr">Nouvelle tâche</label>
+      <input id="newTitle" type="text" placeholder="Ramener carton mixeur demain…" enterkeyhint="done" autocapitalize="sentences">
+      <button id="addBtn" type="submit" aria-label="Ajouter la tâche">+</button>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Quand ?">
+      <button type="button" class="chip" data-when="none" aria-pressed="true">Sans date</button>
+      <button type="button" class="chip" data-when="tonight" aria-pressed="false">🌙 Ce soir</button>
+      <button type="button" class="chip" data-when="today" aria-pressed="false">Aujourd'hui</button>
+      <button type="button" class="chip" data-when="tomorrow" aria-pressed="false">Demain</button>
+      <button type="button" class="chip" data-when="week" aria-pressed="false">Cette semaine</button>
+      <span class="chip" data-when="pick" id="pickChip" aria-pressed="false"><span id="pickLabel">📅 Autre</span><input type="date" id="pickDate" aria-label="Choisir une autre date"></span>
+      <button type="button" class="chip" data-when="idea" aria-pressed="false">💡 Parking</button>
+    </div>
+    <div class="hint" id="hint" aria-live="polite"></div>
+  </div>
+</form>
+
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="grab"></div>
+  <div class="sheet-top"><h2 id="sheetTitle">Modifier</h2><button class="ok-btn" id="eOk" type="button">OK</button></div>
+  <label for="eTitle">Tâche</label>
+  <input type="text" id="eTitle" class="field">
+  <label id="whenLbl">Quand</label>
+  <div class="qchips" id="eChips" role="group" aria-labelledby="whenLbl">
+    <button type="button" class="qchip" data-when="tonight">🌙 Ce soir</button>
+    <button type="button" class="qchip" data-when="today">Aujourd'hui</button>
+    <button type="button" class="qchip" data-when="tomorrow">Demain</button>
+    <button type="button" class="qchip" data-when="week">Cette semaine</button>
+    <button type="button" class="qchip" data-when="none">Sans date</button>
+  </div>
+  <div class="two">
+    <div><label for="eDate">Date</label><input type="date" id="eDate" class="field"></div>
+    <div><label for="eTime">Heure</label><input type="time" id="eTime" class="field"></div>
+  </div>
+  <div class="btns">
+    <button class="btn split" id="eSplitBtn" type="button" aria-expanded="false" aria-controls="splitBox">✂️ Découper en petites étapes</button>
+    <div class="split-box" id="splitBox">
+      <p>Une étape par ligne. La première passe à aujourd'hui.</p>
+      <label for="eSteps" class="sr">Étapes</label>
+      <textarea id="eSteps" class="field" placeholder="Trouver le carton&#10;Le mettre dans le coffre"></textarea>
+      <div class="btns"><button class="btn split" id="eSplitGo" type="button">Créer les étapes</button></div>
+    </div>
+    <a class="btn cal" id="eGcal" href="#" target="_blank" rel="noopener">🔔 Rappel Google Agenda</a>
+    <button class="btn" id="eParking" type="button">💡 Mettre au parking</button>
+    <button class="btn del" id="eDel" type="button">Supprimer</button>
+  </div>
+</div>
+<div class="quick" id="quick" role="dialog" aria-modal="true" aria-labelledby="qHead" hidden>
+  <div class="q-top"><h2 id="qHead">Vite, un <span>truc</span></h2><button class="q-close" id="qClose" type="button">Voir ma liste</button></div>
+  <form id="qForm" autocomplete="off">
+    <label for="qTitle" class="sr">Nouvelle tâche</label>
+    <input id="qTitle" type="text" placeholder="Envoyer téléphone…" enterkeyhint="done" autocapitalize="sentences">
+    <div class="q-grid" role="group" aria-label="Quand ?">
+      <button type="button" class="q-chip" data-when="tonight" aria-pressed="false">🌙 Ce soir</button>
+      <button type="button" class="q-chip" data-when="today" aria-pressed="false">☀️ Aujourd'hui</button>
+      <button type="button" class="q-chip" data-when="tomorrow" aria-pressed="false">➡️ Demain</button>
+      <button type="button" class="q-chip" data-when="week" aria-pressed="false">🗓️ Cette semaine</button>
+      <span class="q-chip" data-when="qpick" id="qPickChip" aria-pressed="false"><span id="qPickLabel">📅 Autre date</span><input type="date" id="qPickDate" aria-label="Choisir une autre date"></span>
+      <button type="button" class="q-chip" data-when="idea" aria-pressed="false">💡 Parking</button>
+    </div>
+    <div class="q-hint" id="qHint" aria-live="polite"></div>
+    <button class="q-add" type="submit" style="width:100%">Ajouter</button>
+  </form>
+  <ul class="q-done" id="qDone" aria-label="Ajoutés"></ul>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button id="toastUndo" type="button" hidden>Annuler</button></div>
+
+<script>
+(function(){
+const $ = s => document.querySelector(s);
+const LS_KEY = 'mes-trucs-v1', LS_META = 'mes-trucs-meta';
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let tasks = {};   // id -> {title, due, time, done, created, doneAt, moves, from, idea}
+let meta = {lastBackup:null};
+let open = {done:false, idea:false};
+let selWhen='none', pickedDate=null, qWhen='none', qPicked=null, editingId=null, skipped=[];
+
+/* ---------- dates ---------- */
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today0=()=>{const d=new Date();d.setHours(0,0,0,0);return d};
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const parseIso=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const daysFromToday=s=>Math.round((parseIso(s)-today0())/86400000);
+const JOURS=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const cap=s=>s.replace(/^./,c=>c.toUpperCase());
+
+function whenToDate(w){
+  const t=today0(), dow=t.getDay();
+  if(w==='today'||w==='tonight') return iso(t);
+  if(w==='week') return iso(addDays(t, dow===0?0:7-dow)); // jusqu'à dimanche
+  if(w==='tomorrow') return iso(addDays(t,1));
+  if(w==='weekend') return iso(addDays(t, dow===6||dow===0?0:6-dow));
+  if(w==='nextweek') return iso(addDays(t, ((8-dow)%7)||7));
+  if(w==='pick') return pickedDate;
+  if(w==='qpick') return qPicked;
+  return null;
+}
+function nextWeekday(i){const t=today0();let n=(i-t.getDay()+7)%7;if(n===0)n=7;return iso(addDays(t,n))}
+
+// Repère une date ("demain", "jeudi"…) et une heure ("à 18h", "18h30") dans le texte
+function smartParse(text){
+  text=text.normalize('NFC'); let title=text, due=null, time=null;
+  const strip=(m)=>{ // retire le morceau trouvé (+ "pour/le/de/à" collé devant)
+    const before=title.slice(0,m.index).replace(/(^|\s)(pour|le|de|d'ici|à|a|vers)\s*$/i,'$1');
+    title=(before+' '+title.slice(m.index+m[0].length)).replace(/\s+/g,' ').trim();
+  };
+  const norm=()=>title.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const tm=norm().match(/\b(\d{1,2})\s?h\s?(\d{2})?\b/)||norm().match(/\b(\d{1,2}):(\d{2})\b/);
+  if(tm && +tm[1]<24 && (!tm[2]||+tm[2]<60)){ time=pad(+tm[1])+':'+(tm[2]||'00'); strip(tm); }
+  const rules=[
+    [/\bapres[- ]demain\b/,()=>iso(addDays(today0(),2))],
+    [/\bdemain\b/,()=>iso(addDays(today0(),1))],
+    [/\b(aujourd'?hui|ce matin|cet aprem|ce midi)\b/,()=>iso(today0())],
+    [/\bce soir\b/,()=>{ if(!time) time='19:00'; return iso(today0()); }],
+    [/\bce week[- ]?end\b/,()=>whenToDate('weekend')],
+    [/\bsemaine prochaine\b/,()=>whenToDate('nextweek')],
+  ];
+  JOURS.forEach((j,i)=>rules.push([new RegExp('\\b'+j+'( prochain)?\\b'),()=>nextWeekday(i)]));
+  for(const [re,fn] of rules){ const m=norm().match(re); if(m){ due=fn(); strip(m); break; } }
+  if(!due && !time) return null;
+  if(time && !due) due=iso(today0());
+  return {title:title||text.trim(), due, time};
+}
+
+function bucket(t){
+  if(t.idea) return 'idea';
+  if(!t.due) return 'nodate';
+  const d=daysFromToday(t.due);
+  if(d<0) return 'late'; if(d===0) return 'today'; if(d===1) return 'tomorrow'; if(d<=7) return 'week'; return 'later';
+}
+const BUCKETS=[
+  ['late','À rattraper','var(--late)'],
+  ['today',"Aujourd'hui",'var(--today)'],
+  ['tomorrow','Demain','var(--tomorrow)'],
+  ['week','Cette semaine','var(--week)'],
+  ['later','Plus tard','var(--later)'],
+  ['nodate','Quand je peux','var(--nodate)'],
+];
+function labelDate(t){
+  if(!t.due) return '';
+  const d=parseIso(t.due), n=daysFromToday(t.due); let s;
+  if(n===0) s="Aujourd'hui"; else if(n===1) s='Demain'; else if(n===-1) s='Prévu hier';
+  else if(n<0) s='Prévu '+JOURS[d.getDay()]+' '+d.getDate()+' '+MOIS[d.getMonth()];
+  else s=cap(JOURS[d.getDay()])+' '+d.getDate()+' '+MOIS[d.getMonth()];
+  if(t.time) s+=' · '+t.time.replace(':','h');
+  return s;
+}
+// Règle des 3 jours : en retard depuis 3 jours ou plus, ou repoussée 3 fois
+const isStuck=t=>!t.done&&!t.idea&&((t.due&&daysFromToday(t.due)<=-3)||(t.moves||0)>=3);
+
+/* ---------- stockage + annuler ---------- */
+function save(){ if(storageBroken) return; try{ localStorage.setItem(LS_KEY,JSON.stringify(tasks)); localStorage.setItem(LS_META,JSON.stringify(meta)); }catch(e){ toast('Impossible d’enregistrer. Fais une sauvegarde depuis le menu ⋯.'); } }
+// Remet chaque tâche d'aplomb (vieux format, sauvegarde abîmée) pour que l'affichage ne plante jamais
+const ISO_RE=/^\d{4}-\d{2}-\d{2}$/, TIME_RE=/^\d{2}:\d{2}$/;
+function cleanTask(t){
+  if(!t||typeof t.title!=='string') return null;
+  const due=typeof t.due==='string'&&ISO_RE.test(t.due)?t.due:null;
+  return {...t, title:t.title, due, time:due&&typeof t.time==='string'&&TIME_RE.test(t.time)?t.time:null,
+    done:!!t.done, created:+t.created||Date.now(), doneAt:t.doneAt?+t.doneAt||null:null,
+    moves:+t.moves||0, from:typeof t.from==='string'?t.from:null, idea:!!t.idea};
+}
+function cleanAll(obj){ const out={}; for(const [id,t] of Object.entries(obj||{})){ const c=cleanTask(t); if(c) out[id]=c; } return out; }
+let storageBroken=false;
+function load(){
+  const raw=localStorage.getItem(LS_KEY);
+  try{ tasks=cleanAll(JSON.parse(raw)); }
+  catch(e){ // données illisibles : on les met de côté au lieu de les écraser
+    try{ localStorage.setItem(LS_KEY+'-abime-'+Date.now(),raw); }catch(err){ storageBroken=true; }
+    tasks={};
+  }
+  try{ meta={...meta,...(JSON.parse(localStorage.getItem(LS_META))||{})}; }catch(e){}
+  if(!meta.firstUse){ meta.firstUse=Date.now(); }
+}
+let undoSnap=null;
+function snapshot(){ undoSnap=JSON.stringify(tasks); }
+function undo(){ if(!undoSnap) return; tasks=JSON.parse(undoSnap); undoSnap=null; save(); render(); toast('C’est annulé'); }
+const newId=()=>'t'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function setDue(t,newDue){ // compte les reports pour la règle des 3 jours
+  if(t.due && newDue && newDue>t.due) t.moves=(t.moves||0)+1;
+  else if(!newDue || (t.due && newDue<t.due)) t.moves=0;
+  t.due=newDue;
+}
+
+/* ---------- rendu ---------- */
+function render(){
+  const list=$('#list');
+  const all=Object.entries(tasks).map(([id,t])=>({id,...t}));
+  const todo=all.filter(t=>!t.done&&!t.idea);
+  const ideas=all.filter(t=>!t.done&&t.idea).sort((a,b)=>b.created-a.created);
+  const done=all.filter(t=>t.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
+  $('#count').textContent=todo.length+' à faire';
+  list.innerHTML='';
+  const sortFn=(a,b)=>(a.due||'').localeCompare(b.due||'')||(a.time||'99').localeCompare(b.time||'99')||a.created-b.created;
+
+  // Rappel de sauvegarde discret : tous les 14 jours, seulement s'il y a des tâches à perdre
+  const since=Math.max(meta.lastBackup||0, meta.firstUse||0, meta.nudgeSnooze||0);
+  if(all.length>=3 && Date.now()-since>=14*86400000){
+    const n=document.createElement('div'); n.className='nudge';
+    n.innerHTML='<span>💾 Ça fait un moment. Une sauvegarde ?</span><button type="button" class="go">Sauvegarder</button><button type="button" class="later" aria-label="Plus tard">Plus tard</button>';
+    n.querySelector('.go').onclick=()=>backup();
+    n.querySelector('.later').onclick=()=>{ meta.nudgeSnooze=Date.now()-7*86400000; save(); render(); }; // revient dans 7 jours
+    list.appendChild(n);
+  }
+
+  // Carte "maintenant" : une seule chose à la fois
+  const urgent=todo.filter(t=>['late','today'].includes(bucket(t))).sort(sortFn);
+  const pool=urgent.filter(t=>!skipped.includes(t.id));
+  const doneToday=done.filter(t=>t.doneAt&&iso(new Date(t.doneAt))===iso(today0())).length;
+  if(urgent.length){
+    const t=pool[0]||urgent[0];
+    const f=document.createElement('section'); f.className='focus'; f.setAttribute('aria-label','Maintenant');
+    f.innerHTML='<div class="eyebrow">Maintenant</div><div class="f-title" role="button" tabindex="0"></div><div class="f-meta"></div><div class="f-btns"><button class="f-done" type="button">C’est fait ✓</button><button class="f-skip" type="button">Pas maintenant</button></div><div class="f-left"></div>';
+    f.querySelector('.f-title').textContent=t.title;
+    f.querySelector('.f-meta').textContent=labelDate(t)+(isStuck(t)?' · coincée, découpe-la ?':'');
+    const others=urgent.length-1;
+    f.querySelector('.f-left').textContent=(others?others+' autre'+(others>1?'s':'')+' pour aujourd’hui':'La dernière pour aujourd’hui')+(doneToday?' · '+doneToday+' déjà faite'+(doneToday>1?'s':''):'');
+    f.querySelector('.f-done').onclick=e=>{ confetti(e.clientX,e.clientY); complete(t.id); };
+    f.querySelector('.f-skip').onclick=()=>{ skipped.push(t.id); if(skipped.length>=urgent.length) skipped=[]; render(); };
+    const ft=f.querySelector('.f-title'); ft.onclick=()=>openSheet(t.id); ft.onkeydown=e=>{ if(e.key==='Enter') openSheet(t.id); };
+    list.appendChild(f);
+  } else if(doneToday){
+    const c=document.createElement('div'); c.className='cheer';
+    c.innerHTML='<b>Journée bouclée 🎉</b>'+doneToday+' truc'+(doneToday>1?'s':'')+' fait'+(doneToday>1?'s':'')+' aujourd’hui. Le reste peut attendre.';
+    list.appendChild(c);
+  }
+
+  if(!todo.length && !ideas.length && !done.length){
+    const e=document.createElement('div'); e.className='empty';
+    e.innerHTML='<b>✌️</b>Rien pour l’instant.<br>Écris ta première tâche en bas, avec « demain » ou « jeudi » si tu veux une date.';
+    list.appendChild(e);
+  }
+  for(const [key,label,color] of BUCKETS){
+    const items=todo.filter(t=>bucket(t)===key).sort(sortFn);
+    if(items.length) list.appendChild(groupEl(label,color,items));
+  }
+  if(ideas.length) list.appendChild(foldEl('idea','💡 Parking',ideas,'var(--idea)','Idées et trucs « un jour ». Pas de pression.'));
+  if(done.length) list.appendChild(foldEl('done','Fait',done.slice(0,60),'var(--nodate)'));
+}
+function groupEl(label,color,items){
+  const sec=document.createElement('section'); sec.className='group';
+  const h=document.createElement('h2'); h.className='g-head';
+  h.innerHTML='<span class="dot" style="background:'+color+'"></span><span></span><span class="n"></span>';
+  h.children[1].textContent=label; h.children[2].textContent=items.length;
+  sec.appendChild(h);
+  const ul=document.createElement('ul'); items.forEach(t=>ul.appendChild(taskEl(t,color))); sec.appendChild(ul);
+  return sec;
+}
+function foldEl(key,label,items,color,sub){
+  const sec=document.createElement('section'); sec.className='group';
+  const row=document.createElement('div'); row.className='fold';
+  const tg=document.createElement('button'); tg.className='fold-btn'; tg.type='button';
+  tg.setAttribute('aria-expanded',open[key]); tg.textContent=(open[key]?'▾ ':'▸ ')+label+' ('+items.length+')';
+  tg.onclick=()=>{open[key]=!open[key];render();};
+  row.appendChild(tg);
+  if(key==='done'&&open.done){
+    const cl=document.createElement('button'); cl.className='link-btn'; cl.type='button'; cl.textContent='Tout effacer';
+    cl.onclick=()=>{ snapshot(); Object.keys(tasks).forEach(id=>{ if(tasks[id].done) delete tasks[id]; }); save(); render(); toast('Tâches faites effacées',true); };
+    row.appendChild(cl);
+  }
+  sec.appendChild(row);
+  if(open[key]){
+    if(sub){ const p=document.createElement('div'); p.className='note'; p.style.margin='0 0 8px 2px'; p.textContent=sub; sec.appendChild(p); }
+    const ul=document.createElement('ul'); items.forEach(t=>ul.appendChild(taskEl(t,color))); sec.appendChild(ul);
+  }
+  return sec;
+}
+function taskEl(t,color){
+  const li=document.createElement('li'); li.className='task'+(t.done?' done':''); li.style.setProperty('--c',color); li.dataset.id=t.id;
+  li.innerHTML='<button class="check" type="button"><i><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 7.5l3.2 3L12 3.5" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></i></button><button class="t-body" type="button"><span class="t-title"></span><span class="t-meta"></span></button>';
+  li.querySelector('.check').setAttribute('aria-label',(t.done?'Remettre à faire : ':'Marquer comme fait : ')+t.title);
+  li.querySelector('.t-title').textContent=t.title;
+  const bits=[labelDate(t)]; if(t.from) bits.push('↳ '+t.from);
+  const m=li.querySelector('.t-meta'); const txt=bits.filter(Boolean).join(' · '); if(txt) m.textContent=txt; else m.remove();
+  if(isStuck(t)){ const s=document.createElement('span'); s.className='stuck'; s.textContent='Coincée ? Découpe-la ✂️'; li.querySelector('.t-body').appendChild(s); }
+  li.querySelector('.check').onclick=ev=>{
+    if(t.done){ snapshot(); tasks[t.id].done=false; tasks[t.id].doneAt=null; save(); render(); return; }
+    li.classList.add('done','pop'); confetti(ev.clientX,ev.clientY);
+    setTimeout(()=>{ li.classList.add('leaving'); setTimeout(()=>complete(t.id),reduced?0:250); },reduced?0:380);
+  };
+  li.querySelector('.t-body').onclick=()=>openSheet(t.id);
+  return li;
+}
+function complete(id){
+  if(!tasks[id]||tasks[id].done) return;
+  snapshot(); tasks[id].done=true; tasks[id].doneAt=Date.now(); save(); render();
+  toast('Fait ✓',true);
+}
+
+/* ---------- confettis ---------- */
+function confetti(x,y){
+  if(reduced||!x) return;
+  const cols=['#FF5A4E','#FFC531','#3DD6A3','#7C8CFF','#C77DFF'];
+  for(let i=0;i<18;i++){
+    const c=document.createElement('div'); c.className='confetti'; c.style.background=cols[i%5]; c.style.left=x+'px'; c.style.top=y+'px';
+    document.body.appendChild(c);
+    const a=Math.random()*Math.PI*2, v=60+Math.random()*90;
+    c.animate([{transform:'translate(0,0)',opacity:1},{transform:'translate('+Math.cos(a)*v+'px,'+(Math.sin(a)*v+80)+'px) rotate('+(Math.random()*540)+'deg)',opacity:0}],{duration:900,easing:'cubic-bezier(.2,.7,.4,1)'}).onfinish=()=>c.remove();
+  }
+}
+
+/* ---------- ajout ---------- */
+const DEFAULT_HINT='Écris « demain », « jeudi » ou « à 18h » : la date se met toute seule.';
+const TONIGHT='19:00';
+// Ajoute une tâche à partir du texte tapé et du bouton de date choisi
+function addTask(raw,when,textWins){
+  const isIdea=when==='idea';
+  let title=raw, due=isIdea?null:whenToDate(when), time=when==='tonight'?TONIGHT:null;
+  const p=smartParse(raw);
+  if(p && !isIdea){ title=p.title; if(p.time) time=p.time; if(when==='none'||textWins){ due=p.due; if(!p.time) time=null; } }
+  const id=newId();
+  tasks[id]={title,due,time,done:false,created:Date.now(),doneAt:null,moves:0,from:null,idea:isIdea};
+  save(); if(isIdea) open.idea=true;
+  return {id,label:isIdea?'au parking':(labelDate({due,time})||'sans date')};
+}
+function setChip(w){
+  selWhen=w;
+  document.querySelectorAll('#chips .chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.when===w));
+  if(w!=='pick') $('#pickLabel').textContent='📅 Autre';
+  updateHint();
+}
+document.querySelectorAll('#chips button.chip').forEach(c=>c.onclick=()=>{ setChip(selWhen===c.dataset.when&&c.dataset.when!=='none'?'none':c.dataset.when); $('#newTitle').focus(); });
+$('#pickDate').addEventListener('change',e=>{
+  if(!e.target.value) return; pickedDate=e.target.value; setChip('pick');
+  const d=parseIso(pickedDate); $('#pickLabel').textContent='📅 '+d.getDate()+' '+MOIS[d.getMonth()];
+});
+function updateHint(){
+  const raw=$('#newTitle').value; const p=raw?smartParse(raw):null; const h=$('#hint');
+  if(selWhen==='idea'){ h.textContent='Va au parking, sans date.'; return; }
+  if(selWhen==='tonight'){ h.textContent='Ce soir à 19h'+(raw?'':' (ou écris une heure)'); return; }
+  if(p && selWhen==='none'){ h.textContent=''; const b=document.createElement('b'); b.textContent='→ '+labelDate(p); h.append(b,' · « '+p.title+' »'); return; }
+  h.textContent=raw?'':DEFAULT_HINT;
+}
+$('#newTitle').addEventListener('input',updateHint);
+$('#composer').addEventListener('submit',e=>{
+  e.preventDefault();
+  const raw=$('#newTitle').value.trim(); if(!raw) return;
+  const isIdea=selWhen==='idea';
+  const {id}=addTask(raw,selWhen);
+  $('#newTitle').value=''; setChip('none'); pickedDate=null; $('#pickDate').value='';
+  render();
+  const el=document.querySelector('li[data-id="'+id+'"]'); if(el){ el.classList.add('pop'); el.scrollIntoView({block:'nearest',behavior:reduced?'auto':'smooth'}); }
+  $('#hint').textContent=isIdea?'Garé au parking ✓':'Ajouté ✓';
+  $('#newTitle').focus();
+});
+
+/* ---------- fiche ---------- */
+let sheetInHistory=false;
+function hideSheet(){
+  $('#sheet').classList.remove('open'); $('#sheetBg').classList.remove('open');
+  if(sheetInHistory){ sheetInHistory=false; history.back(); }
+}
+function openSheet(id){
+  const t=tasks[id]; if(!t) return; editingId=id;
+  $('#eTitle').value=t.title; $('#eDate').value=t.due||''; $('#eTime').value=t.time||'';
+  $('#eParking').textContent=t.idea?'📋 Sortir du parking':'💡 Mettre au parking';
+  $('#splitBox').classList.remove('open'); $('#eSplitBtn').setAttribute('aria-expanded','false'); $('#eSteps').value='';
+  syncQChips(); updateCal();
+  $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open');
+  // le bouton retour d'Android ferme la fiche au lieu de quitter l'appli
+  try{ history.pushState({sheet:1},''); sheetInHistory=true; }catch(e){}
+  setTimeout(()=>$('#eOk').focus({preventScroll:true}),50);
+}
+function commitSheet(){
+  const t=tasks[editingId]; if(!t) return;
+  const title=$('#eTitle').value.trim()||t.title; const due=$('#eDate').value||null; const time=due?($('#eTime').value||null):null;
+  if(title===t.title && due===t.due && time===t.time) return;
+  snapshot(); t.title=title; setDue(t,due); t.time=time; if(due) t.idea=false; save();
+}
+function closeSheet(fromPop){
+  if(!editingId) return;
+  commitSheet(); const id=editingId; editingId=null;
+  if(fromPop){ sheetInHistory=false; $('#sheet').classList.remove('open'); $('#sheetBg').classList.remove('open'); }
+  else hideSheet();
+  render();
+  const b=document.querySelector('li[data-id="'+id+'"] .t-body'); if(b) b.focus({preventScroll:true});
+}
+window.addEventListener('popstate',()=>{ if(editingId) closeSheet(true); });
+$('#sheetBg').onclick=()=>closeSheet();
+$('#eOk').onclick=()=>closeSheet();
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&editingId) closeSheet(); });
+function syncQChips(){
+  const d=$('#eDate').value||null;
+  const evening=($('#eTime').value||'')>='17:00', isToday=d===iso(today0());
+  document.querySelectorAll('#eChips .qchip').forEach(c=>{ const w=c.dataset.when; let on;
+    if(w==='none') on=!d; else if(w==='tonight') on=isToday&&evening; else if(w==='today') on=isToday&&!evening;
+    else if(w==='week') on=!!d&&d===whenToDate('week')&&d!==iso(today0())&&d!==whenToDate('tomorrow'); else on=!!d&&whenToDate(w)===d;
+    c.setAttribute('aria-pressed',String(on)); });
+}
+document.querySelectorAll('#eChips .qchip').forEach(c=>c.onclick=()=>{ const w=c.dataset.when; $('#eDate').value=whenToDate(w)||''; if(w==='none') $('#eTime').value=''; if(w==='tonight'&&!$('#eTime').value) $('#eTime').value=TONIGHT; if(w==='today'&&$('#eTime').value>='17:00') $('#eTime').value=''; syncQChips(); updateCal(); });
+['eDate','eTime','eTitle'].forEach(i=>$('#'+i).addEventListener('input',()=>{ syncQChips(); updateCal(); }));
+$('#eDel').onclick=()=>{ const id=editingId; snapshot(); editingId=null; delete tasks[id]; save(); hideSheet(); render(); toast('Supprimé',true); };
+$('#eParking').onclick=()=>{
+  commitSheet(); const id=editingId, t=tasks[id]; const before=undoSnap||JSON.stringify(tasks);
+  t.idea=!t.idea; if(t.idea){t.due=null;t.time=null;t.moves=0;} save(); undoSnap=before;
+  editingId=null; hideSheet(); if(t.idea) open.idea=true; render();
+  toast(t.idea?'Garé au parking':'Sorti du parking',true);
+};
+$('#eSplitBtn').onclick=()=>{ const o=$('#splitBox').classList.toggle('open'); $('#eSplitBtn').setAttribute('aria-expanded',o); if(o) $('#eSteps').focus(); };
+$('#eSplitGo').onclick=()=>{
+  const steps=$('#eSteps').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(!steps.length){ $('#eSteps').focus(); return; }
+  const parent=tasks[editingId]; snapshot();
+  const parentTitle=$('#eTitle').value.trim()||parent.title, parentDue=$('#eDate').value||null;
+  const now=Date.now();
+  steps.forEach((s,i)=>{ tasks[newId()+i]={title:s,due:i===0?iso(today0()):(parentDue&&parentDue>iso(today0())?parentDue:null),time:null,done:false,created:now+i,doneAt:null,moves:0,from:parentTitle,idea:false}; });
+  delete tasks[editingId]; editingId=null; save(); hideSheet();
+  render(); toast(steps.length+' étapes créées',true);
+};
+function calTimes(){
+  const date=$('#eDate').value||iso(today0()), time=$('#eTime').value||'09:00';
+  const [y,m,d]=date.split('-'), [hh,mm]=time.split(':');
+  const s=new Date(+y,+m-1,+d,+hh,+mm), e=new Date(s.getTime()+15*60000);
+  const f=x=>x.getFullYear()+pad(x.getMonth()+1)+pad(x.getDate())+'T'+pad(x.getHours())+pad(x.getMinutes())+'00';
+  return {s:f(s),e:f(e)};
+}
+function updateCal(){
+  const {s,e}=calTimes(), title=$('#eTitle').value.trim()||'Tâche';
+  $('#eGcal').href='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(title)+'&dates='+s+'/'+e+'&ctz=Europe/Paris';
+  const hasD=!!$('#eDate').value, hasT=!!$('#eTime').value;
+  $('#eGcal').textContent='🔔 Rappel Google Agenda'+(hasT?'':hasD?' (à 9h)':' (aujourd’hui 9h)');
+}
+$('#eGcal').addEventListener('click',()=>commitSheet());
+
+/* ---------- menu, sauvegarde, installation ---------- */
+function updateBackupNote(){
+  const n=$('#backupNote');
+  if(!meta.lastBackup){ n.textContent='Tes tâches vivent sur ce téléphone. Pense à sauvegarder de temps en temps.'; n.className='note'; return; }
+  const days=Math.floor((Date.now()-meta.lastBackup)/86400000);
+  n.textContent='Dernière sauvegarde : '+(days===0?'aujourd’hui':'il y a '+days+' jour'+(days>1?'s':''))+'.';
+  n.className='note'+(days>=14?' warn':'');
+}
+$('#menuBtn').onclick=()=>{ const o=$('#menu').classList.toggle('open'); $('#menuBtn').setAttribute('aria-expanded',o); updateBackupNote(); };
+// Sauvegarde : propose le partage (Drive, mail, WhatsApp…) quand le téléphone le permet, sinon Téléchargements
+async function backup(){
+  const name='mes-trucs-'+iso(new Date())+'.json';
+  const json=JSON.stringify({app:'mes-trucs',v:2,date:new Date().toISOString(),tasks},null,1);
+  const done=msg=>{ meta.lastBackup=Date.now(); save(); updateBackupNote(); render(); toast(msg); };
+  try{
+    const file=new File([json],name,{type:'application/json'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'Sauvegarde Mes trucs'});
+      return done('Sauvegarde envoyée ✓');
+    }
+  }catch(e){ if(e&&e.name==='AbortError') return; } // partage annulé : on ne fait rien
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([json],{type:'application/json'})); a.download=name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  done('Sauvegarde dans tes Téléchargements');
+}
+$('#exportBtn').onclick=()=>backup();
+$('#importFile').addEventListener('change',async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const data=JSON.parse(await f.text()); const inc=data&&data.tasks; if(!inc||typeof inc!=='object') throw 0;
+    snapshot(); let n=0;
+    for(const [id,t] of Object.entries(cleanAll(inc))){ tasks[id]=t; n++; }
+    save(); render(); toast(n+' tâche'+(n>1?'s':'')+' restaurée'+(n>1?'s':''),true);
+  }catch(err){ toast('Ce fichier n’est pas une sauvegarde Mes trucs'); }
+  e.target.value='';
+});
+let installEvt=null;
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); installEvt=e; $('#installBtn').hidden=false; });
+$('#installBtn').onclick=async()=>{ if(!installEvt) return; installEvt.prompt(); await installEvt.userChoice; installEvt=null; $('#installBtn').hidden=true; };
+window.addEventListener('appinstalled',()=>{ $('#installBtn').hidden=true; toast('Appli installée ✓'); });
+
+
+/* ---------- ajout rapide (raccourcis) ---------- */
+function setQ(w){
+  qWhen=w;
+  document.querySelectorAll('#quick .q-chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.when===w));
+  if(w!=='qpick') $('#qPickLabel').textContent='📅 Autre date';
+  qHint();
+}
+function qHint(){
+  const raw=$('#qTitle').value, p=raw?smartParse(raw):null, h=$('#qHint');
+  const names={tonight:'Ce soir à 19h',today:"Aujourd'hui",tomorrow:'Demain',week:'Cette semaine (avant dimanche)',idea:'Au parking, sans date'};
+  h.textContent='';
+  document.querySelectorAll('#quick .q-chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.when===qWhen&&!(p&&!qTouched)));
+  if(p&&(qWhen==='none'||!qTouched)){ const b=document.createElement('b'); b.textContent='→ '+labelDate(p); h.append(b,' · « '+p.title+' »'); return; }
+  if(qWhen==='qpick'&&qPicked){ h.textContent='→ '+labelDate({due:qPicked}); return; }
+  h.textContent=names[qWhen]?'→ '+names[qWhen]:'Choisis quand, ou laisse vide pour « Quand je peux ».';
+}
+let qDefault='none', qTouched=false;
+function openQuick(w){
+  qDefault=w||'none'; qTouched=false; setQ(qDefault); $('#qDone').innerHTML='';
+  $('#quick').hidden=false; document.body.style.overflow='hidden';
+  try{ if(!quickInHistory){ history.pushState({quick:1},''); quickInHistory=true; } }catch(e){}
+  setTimeout(()=>$('#qTitle').focus(),60);
+}
+let quickInHistory=false;
+function closeQuick(fromPop){ if($('#quick').hidden) return; $('#quick').hidden=true; document.body.style.overflow=''; if(quickInHistory&&!fromPop){ quickInHistory=false; history.back(); } quickInHistory=false; render(); }
+window.addEventListener('popstate',()=>{ if(quickInHistory&&!$('#quick').hidden) closeQuick(true); });
+document.querySelectorAll('#quick button.q-chip').forEach(c=>c.onclick=()=>{ qTouched=true; setQ(qWhen===c.dataset.when?'none':c.dataset.when); $('#qTitle').focus(); });
+$('#qPickDate').addEventListener('change',e=>{ if(!e.target.value) return; qPicked=e.target.value; qTouched=true; setQ('qpick'); const d=parseIso(qPicked); $('#qPickLabel').textContent='📅 '+d.getDate()+' '+MOIS[d.getMonth()]; });
+$('#qTitle').addEventListener('input',qHint);
+$('#qForm').addEventListener('submit',e=>{
+  e.preventDefault();
+  const raw=$('#qTitle').value.trim(); if(!raw){ $('#qTitle').focus(); return; }
+  const r=addTask(raw,qWhen,!qTouched);
+  const li=document.createElement('li'); li.textContent=tasks[r.id].title+' · '+r.label; $('#qDone').prepend(li);
+  $('#qTitle').value=''; qPicked=null; $('#qPickDate').value=''; qTouched=false; setQ(qDefault);
+  if(navigator.vibrate) try{ navigator.vibrate(15); }catch(err){}
+  $('#qTitle').focus();
+});
+$('#qClose').onclick=()=>closeQuick();
+$('#quickBtn').onclick=()=>{ $('#menu').classList.remove('open'); openQuick('none'); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('#quick').hidden) closeQuick(); });
+(function(){ // ouvert depuis un raccourci : ./?add=1&when=tonight
+  const q=new URLSearchParams(location.search);
+  if(q.has('add')){ const w=q.get('when'); try{ history.replaceState(null,'',location.pathname); }catch(e){} openQuick(['tonight','today','tomorrow','week','idea'].includes(w)?w:'none'); }
+})();
+
+/* ---------- toast ---------- */
+let toastT;
+function toast(msg,withUndo){
+  $('#toastMsg').textContent=msg; $('#toastUndo').hidden=!withUndo;
+  $('#toast').classList.add('show'); clearTimeout(toastT);
+  toastT=setTimeout(()=>$('#toast').classList.remove('show'),withUndo?5000:2200);
+}
+$('#toastUndo').onclick=()=>{ $('#toast').classList.remove('show'); undo(); };
+
+/* ---------- démarrage ---------- */
+function setDateNow(){ const d=new Date(); $('#dateNow').textContent=cap(JOURS[d.getDay()])+' '+d.getDate()+' '+MOIS[d.getMonth()]; }
+load(); save(); setDateNow(); updateHint(); render();
+if(storageBroken) toast('Mémoire du téléphone pleine : fais une sauvegarde depuis ⋯');
+let lastDay=iso(today0());
+function refresh(){ if(iso(today0())!==lastDay){ lastDay=iso(today0()); skipped=[]; } setDateNow(); if(!editingId) render(); }
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refresh(); });
+setInterval(()=>{ if(!document.hidden&&iso(today0())!==lastDay) refresh(); },60000); // passage de minuit appli ouverte
+// L'appli ouverte ailleurs (onglet Chrome + appli installée) : on recharge au lieu d'écraser
+window.addEventListener('storage',e=>{ if(e.key===LS_KEY||e.key===LS_META){ load(); if(!editingId) render(); } });
+(async()=>{
+  try{ if(navigator.storage&&navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
+  if('serviceWorker' in navigator){ try{ await navigator.serviceWorker.register('sw.js'); }catch(e){} }
+})();
+})();
+</script>
+</body>
+</html>
