@@ -111,6 +111,23 @@ with sync_playwright() as p:
     pg.reload(); pg.wait_for_timeout(300)
     assert titles(pg) == ["Vieille tâche"], titles(pg)
 
+    # « Cette semaine » déplie les jours : barre d'ajout, fiche, écran rapide
+    due_of = lambda t: pg.evaluate("t=>Object.values(JSON.parse(localStorage.getItem('mes-trucs-v1'))).find(x=>x.title===t).due", t)
+    in3 = pg.evaluate("()=>{const d=new Date();d.setDate(d.getDate()+3);const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())}")
+    in5 = pg.evaluate("()=>{const d=new Date();d.setDate(d.getDate()+5);const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())}")
+    pg.click(".chip[data-when=week]"); assert not pg.is_hidden("#days")
+    pg.click("#days .day >> nth=2"); pg.fill("#newTitle", "Rendre les clés"); pg.click("#addBtn"); pg.wait_for_timeout(150)
+    assert due_of("Rendre les clés") == in3, due_of("Rendre les clés")
+    assert pg.is_hidden("#days"), "la rangée des jours reste ouverte après l'ajout"
+    pg.click("li.task:has-text('Rendre les clés') .t-body"); pg.wait_for_timeout(300)
+    pg.click("#eChips .qchip[data-when=week]"); pg.click("#eDays .day >> nth=4"); pg.click("#eOk"); pg.wait_for_timeout(300)
+    assert due_of("Rendre les clés") == in5, due_of("Rendre les clés")
+    pg.click("#menuBtn"); pg.click("#quickBtn"); pg.wait_for_timeout(200)
+    pg.click("#quick .q-chip[data-when=week]"); pg.click("#qDays .day >> nth=2")
+    pg.fill("#qTitle", "Poster le colis"); pg.click(".q-add"); pg.wait_for_timeout(150)
+    assert due_of("Poster le colis") == in3, due_of("Poster le colis")
+    pg.click("#qClose"); pg.wait_for_timeout(200)
+
     # Tâche mère : reste en coulisse, on peut y ajouter une étape oubliée, elle se boucle toute seule
     pg.evaluate("()=>{localStorage.setItem('mes-trucs-v1','{}');}"); pg.reload(); pg.wait_for_timeout(300)
     pg.fill("#newTitle", "Préparer le salon"); pg.click("#addBtn"); pg.wait_for_timeout(100)

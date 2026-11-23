@@ -94,6 +94,14 @@ li.done .t-title{text-decoration:line-through;color:var(--muted)}
 .chip{flex:none;font-size:14px;font-weight:700;border:2px solid #5A5570;color:#fff!important;background:transparent;border-radius:999px;padding:0 13px;min-height:40px;display:inline-flex;align-items:center;cursor:pointer;position:relative}
 .chip[aria-pressed="true"]{background:#fff;color:var(--ink)!important;border-color:#fff}
 .chip input{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}
+.days{display:flex;gap:6px;margin-top:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.days::-webkit-scrollbar{display:none}
+.day{flex:1 0 44px;min-height:48px;border-radius:14px;border:2px solid #5A5570;background:transparent;color:#fff!important;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:12px;font-weight:700;cursor:pointer;padding:2px 4px}
+.day b{font-size:17px;font-weight:800;line-height:1}
+.day[aria-pressed="true"]{background:var(--today);border-color:var(--today);color:var(--ink)!important}
+.sheet .day{border-color:var(--line);background:#fff;color:var(--ink)!important}
+.sheet .day[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff!important}
+.quick .day{min-height:58px}
 .hint{color:#C9C3D8;font-size:13px;margin-top:8px;min-height:17px}
 .hint b{color:var(--today)}
 
@@ -216,6 +224,7 @@ textarea.field{min-height:110px;resize:vertical}
       <span class="chip" data-when="pick" id="pickChip" aria-pressed="false"><span id="pickLabel">📅 Autre</span><input type="date" id="pickDate" aria-label="Choisir une autre date"></span>
       <button type="button" class="chip" data-when="idea" aria-pressed="false">💡 Parking</button>
     </div>
+    <div class="days" id="days" role="group" aria-label="Quel jour ?" hidden></div>
     <div class="hint" id="hint" aria-live="polite"></div>
   </div>
 </form>
@@ -236,6 +245,7 @@ textarea.field{min-height:110px;resize:vertical}
     <button type="button" class="qchip" data-when="week">Cette semaine</button>
     <button type="button" class="qchip" data-when="none">Sans date</button>
   </div>
+  <div class="days not-mother" id="eDays" role="group" aria-label="Quel jour ?" hidden></div>
   <div class="two not-mother">
     <div><label for="eDate">Date</label><input type="date" id="eDate" class="field"></div>
     <div><label for="eTime">Heure</label><input type="time" id="eTime" class="field"></div>
@@ -266,6 +276,7 @@ textarea.field{min-height:110px;resize:vertical}
       <span class="q-chip" data-when="qpick" id="qPickChip" aria-pressed="false"><span id="qPickLabel">📅 Autre date</span><input type="date" id="qPickDate" aria-label="Choisir une autre date"></span>
       <button type="button" class="q-chip" data-when="idea" aria-pressed="false">💡 Parking</button>
     </div>
+    <div class="days" id="qDays" role="group" aria-label="Quel jour ?" hidden></div>
     <div class="q-hint" id="qHint" aria-live="polite"></div>
     <button class="q-add" type="submit" style="width:100%">Ajouter</button>
   </form>
@@ -549,10 +560,27 @@ function addTask(raw,when,textWins){
   save(); if(isIdea) open.idea=true;
   return {id,label:isIdea?'au parking':(labelDate({due,time})||'sans date')};
 }
-function setChip(w){
+// « Cette semaine » déplie les 7 prochains jours : un appui pour une date précise
+const JC=['dim','lun','mar','mer','jeu','ven','sam'];
+function fillDays(box,onPick,sel){
+  box.innerHTML='';
+  for(let i=1;i<=7;i++){
+    const d=addDays(today0(),i), v=iso(d), b=document.createElement('button');
+    b.type='button'; b.className='day'; b.setAttribute('aria-pressed',String(v===sel));
+    b.innerHTML='<span></span><b></b>'; b.children[0].textContent=i===1?'dem.':JC[d.getDay()]; b.children[1].textContent=d.getDate();
+    b.setAttribute('aria-label',(i===1?'Demain, ':'')+JOURS[d.getDay()]+' '+d.getDate()+' '+MOIS[d.getMonth()]);
+    b.onclick=()=>{ box.querySelectorAll('.day').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); onPick(v); };
+    box.appendChild(b);
+  }
+  box.hidden=false;
+}
+const dayLabel=v=>{ const d=parseIso(v); return '📅 '+JC[d.getDay()]+' '+d.getDate(); };
+function setChip(w,keepDays){
   selWhen=w;
   document.querySelectorAll('#chips .chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.when===w));
   if(w!=='pick') $('#pickLabel').textContent='📅 Autre';
+  if(w==='week') fillDays($('#days'),v=>{ pickedDate=v; setChip('pick',true); $('#pickLabel').textContent=dayLabel(v); $('#newTitle').focus(); });
+  else if(!keepDays) $('#days').hidden=true;
   updateHint();
 }
 document.querySelectorAll('#chips button.chip').forEach(c=>c.onclick=()=>{ setChip(selWhen===c.dataset.when&&c.dataset.when!=='none'?'none':c.dataset.when); $('#newTitle').focus(); });
@@ -565,6 +593,8 @@ function updateHint(){
   if(selWhen==='idea'){ h.textContent='Va au parking, sans date.'; return; }
   if(selWhen==='tonight'){ h.textContent='Ce soir à 19h'+(raw?'':' (ou écris une heure)'); return; }
   if(p && selWhen==='none'){ h.textContent=''; const b=document.createElement('b'); b.textContent='→ '+labelDate(p); h.append(b,' · « '+p.title+' »'); return; }
+  if(selWhen==='pick'&&pickedDate){ h.textContent=''; const b=document.createElement('b'); b.textContent='→ '+labelDate({due:pickedDate}); h.append(b); return; }
+  if(selWhen==='week'){ h.textContent='D’ici dimanche, ou touche un jour précis.'; return; }
   h.textContent=raw?'':DEFAULT_HINT;
 }
 $('#newTitle').addEventListener('input',updateHint);
@@ -599,7 +629,7 @@ function openSheet(id,swap){
   $('#eSplitBtn').textContent=mother?'➕ Ajouter des étapes':mum?'✂️ Redécouper cette étape':'✂️ Découper en petites étapes';
   $('#splitHelp').textContent=mother?'Une étape par ligne. Elles arrivent dans « Quand je peux ».':mum?'Une étape par ligne. La première prend la place de celle-ci.':'Une étape par ligne. La première passe à aujourd’hui.';
   $('#eDel').textContent=mother?'Supprimer (les étapes restent)':'Supprimer';
-  $('#eTitle').value=t.title; $('#eDate').value=t.due||''; $('#eTime').value=t.time||'';
+  $('#eTitle').value=t.title; $('#eDate').value=t.due||''; $('#eTime').value=t.time||''; $('#eDays').hidden=true;
   $('#eParking').textContent=t.idea?'📋 Sortir du parking':'💡 Mettre au parking';
   $('#splitBox').classList.remove('open'); $('#eSplitBtn').setAttribute('aria-expanded','false'); $('#eSteps').value='';
   syncQChips(); updateCal();
@@ -638,7 +668,8 @@ function syncQChips(){
     else if(w==='week') on=!!d&&d===whenToDate('week')&&d!==iso(today0())&&d!==whenToDate('tomorrow'); else on=!!d&&whenToDate(w)===d;
     c.setAttribute('aria-pressed',String(on)); });
 }
-document.querySelectorAll('#eChips .qchip').forEach(c=>c.onclick=()=>{ const w=c.dataset.when; $('#eDate').value=whenToDate(w)||''; if(w==='none') $('#eTime').value=''; if(w==='tonight'&&!$('#eTime').value) $('#eTime').value=TONIGHT; if(w==='today'&&$('#eTime').value>='17:00') $('#eTime').value=''; syncQChips(); updateCal(); });
+document.querySelectorAll('#eChips .qchip').forEach(c=>c.onclick=()=>{ const w=c.dataset.when; $('#eDate').value=whenToDate(w)||'';
+  if(w==='week') fillDays($('#eDays'),v=>{ $('#eDate').value=v; syncQChips(); updateCal(); }); else $('#eDays').hidden=true; if(w==='none') $('#eTime').value=''; if(w==='tonight'&&!$('#eTime').value) $('#eTime').value=TONIGHT; if(w==='today'&&$('#eTime').value>='17:00') $('#eTime').value=''; syncQChips(); updateCal(); });
 ['eDate','eTime','eTitle'].forEach(i=>$('#'+i).addEventListener('input',()=>{ syncQChips(); updateCal(); }));
 $('#eDel').onclick=()=>{
   const id=editingId, t=tasks[id]; snapshot(); editingId=null;
@@ -773,10 +804,12 @@ $('#notifPause').onclick=async()=>{ try{ const on=await showPause(); await idbSe
 if('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message',e=>{ if(e.data&&e.data.type==='pending') applyPending(); });
 
 /* ---------- ajout rapide (raccourcis) ---------- */
-function setQ(w){
+function setQ(w,keepDays){
   qWhen=w;
   document.querySelectorAll('#quick .q-chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.when===w));
   if(w!=='qpick') $('#qPickLabel').textContent='📅 Autre date';
+  if(w==='week') fillDays($('#qDays'),v=>{ qPicked=v; qTouched=true; setQ('qpick',true); $('#qPickLabel').textContent=dayLabel(v); $('#qTitle').focus(); });
+  else if(!keepDays) $('#qDays').hidden=true;
   qHint();
 }
 function qHint(){
