@@ -21,6 +21,7 @@ html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Bricolage 
 body{min-height:100vh;padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)}
 button{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--week);outline-offset:2px}
+[hidden]{display:none!important}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .wrap{max-width:560px;margin:0 auto;padding:18px 16px 210px}
 
@@ -122,6 +123,12 @@ textarea.field{min-height:110px;resize:vertical}
 .notif-box p,.notif-box ol{margin:0}
 .notif-box ol{padding-left:20px}
 #subOut{min-height:70px;font-size:12px;font-family:ui-monospace,monospace}
+.sheet.is-mother .not-mother{display:none!important}
+.btn.mother{margin-top:8px;background:#fff;justify-content:flex-start;font-weight:700;color:var(--muted)!important}
+.kids{background:#fff;border-radius:14px;padding:10px 14px;margin-top:12px;font-size:15px}
+.kids b{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.kids div{padding:3px 0}
+.kids .k-done{color:var(--muted);text-decoration:line-through}
 .split-box{display:none;background:#fff;border-radius:var(--radius);padding:12px}
 .split-box.open{display:block}
 .split-box p{margin:0 0 8px;font-size:14px}
@@ -215,28 +222,30 @@ textarea.field{min-height:110px;resize:vertical}
   <div class="sheet-top"><h2 id="sheetTitle">Modifier</h2><button class="ok-btn" id="eOk" type="button">OK</button></div>
   <label for="eTitle">Tâche</label>
   <input type="text" id="eTitle" class="field">
-  <label id="whenLbl">Quand</label>
-  <div class="qchips" id="eChips" role="group" aria-labelledby="whenLbl">
+  <button class="btn mother" id="eParentBtn" type="button" hidden></button>
+  <div class="kids" id="eKids" hidden></div>
+  <label id="whenLbl" class="not-mother">Quand</label>
+  <div class="qchips not-mother" id="eChips" role="group" aria-labelledby="whenLbl">
     <button type="button" class="qchip" data-when="tonight">🌙 Ce soir</button>
     <button type="button" class="qchip" data-when="today">Aujourd'hui</button>
     <button type="button" class="qchip" data-when="tomorrow">Demain</button>
     <button type="button" class="qchip" data-when="week">Cette semaine</button>
     <button type="button" class="qchip" data-when="none">Sans date</button>
   </div>
-  <div class="two">
+  <div class="two not-mother">
     <div><label for="eDate">Date</label><input type="date" id="eDate" class="field"></div>
     <div><label for="eTime">Heure</label><input type="time" id="eTime" class="field"></div>
   </div>
   <div class="btns">
     <button class="btn split" id="eSplitBtn" type="button" aria-expanded="false" aria-controls="splitBox">✂️ Découper en petites étapes</button>
     <div class="split-box" id="splitBox">
-      <p>Une étape par ligne. La première passe à aujourd'hui.</p>
+      <p id="splitHelp">Une étape par ligne. La première passe à aujourd'hui.</p>
       <label for="eSteps" class="sr">Étapes</label>
       <textarea id="eSteps" class="field" placeholder="Trouver le carton&#10;Le mettre dans le coffre"></textarea>
       <div class="btns"><button class="btn split" id="eSplitGo" type="button">Créer les étapes</button></div>
     </div>
-    <a class="btn cal" id="eGcal" href="#" target="_blank" rel="noopener">🔔 Rappel Google Agenda</a>
-    <button class="btn" id="eParking" type="button">💡 Mettre au parking</button>
+    <a class="btn cal not-mother" id="eGcal" href="#" target="_blank" rel="noopener">🔔 Rappel Google Agenda</a>
+    <button class="btn not-mother" id="eParking" type="button">💡 Mettre au parking</button>
     <button class="btn del" id="eDel" type="button">Supprimer</button>
   </div>
 </div>
@@ -354,7 +363,8 @@ function cleanTask(t){
   const due=typeof t.due==='string'&&ISO_RE.test(t.due)?t.due:null;
   return {...t, title:t.title, due, time:due&&typeof t.time==='string'&&TIME_RE.test(t.time)?t.time:null,
     done:!!t.done, created:+t.created||Date.now(), doneAt:t.doneAt?+t.doneAt||null:null,
-    moves:+t.moves||0, from:typeof t.from==='string'?t.from:null, idea:!!t.idea};
+    moves:+t.moves||0, from:typeof t.from==='string'?t.from:null, idea:!!t.idea,
+    split:!!t.split, parent:typeof t.parent==='string'?t.parent:null};
 }
 function cleanAll(obj){ const out={}; for(const [id,t] of Object.entries(obj||{})){ const c=cleanTask(t); if(c) out[id]=c; } return out; }
 let storageBroken=false;
@@ -367,6 +377,16 @@ function load(){
   }
   try{ meta={...meta,...(JSON.parse(localStorage.getItem(LS_META))||{})}; }catch(e){}
   if(!meta.firstUse){ meta.firstUse=Date.now(); }
+  if(!meta.mothersV){ // avant la v9, découper supprimait la tâche mère : on la recrée à partir du « ↳ » des étapes
+    const groups={};
+    for(const [id,t] of Object.entries(tasks)) if(t.from&&!t.parent) (groups[t.from]=groups[t.from]||[]).push(id);
+    for(const [title,ids] of Object.entries(groups)){
+      if(ids.every(id=>tasks[id].done)) continue;
+      const pid=newId(); tasks[pid]=cleanTask({title,due:null,created:Math.min(...ids.map(id=>tasks[id].created))-1,split:true});
+      ids.forEach(id=>tasks[id].parent=pid);
+    }
+    meta.mothersV=1;
+  }
 }
 let undoSnap=null;
 function snapshot(){ undoSnap=JSON.stringify(tasks); }
@@ -382,8 +402,8 @@ function setDue(t,newDue){ // compte les reports pour la règle des 3 jours
 function render(){
   const list=$('#list');
   const all=Object.entries(tasks).map(([id,t])=>({id,...t}));
-  const todo=all.filter(t=>!t.done&&!t.idea);
-  const ideas=all.filter(t=>!t.done&&t.idea).sort((a,b)=>b.created-a.created);
+  const todo=all.filter(t=>!t.done&&!t.idea&&!t.split);
+  const ideas=all.filter(t=>!t.done&&t.idea&&!t.split).sort((a,b)=>b.created-a.created);
   const done=all.filter(t=>t.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
   $('#count').textContent=todo.length+' à faire';
   list.innerHTML='';
@@ -470,7 +490,7 @@ function taskEl(t,color){
   const m=li.querySelector('.t-meta'); const txt=bits.filter(Boolean).join(' · '); if(txt) m.textContent=txt; else m.remove();
   if(isStuck(t)){ const s=document.createElement('span'); s.className='stuck'; s.textContent='Coincée ? Découpe-la ✂️'; li.querySelector('.t-body').appendChild(s); }
   li.querySelector('.check').onclick=ev=>{
-    if(t.done){ snapshot(); tasks[t.id].done=false; tasks[t.id].doneAt=null; save(); render(); return; }
+    if(t.done){ snapshot(); tasks[t.id].done=false; tasks[t.id].doneAt=null; if(tasks[t.id].parent) checkMother(tasks[t.id].parent); save(); render(); return; }
     li.classList.add('done','pop'); confetti(ev.clientX,ev.clientY);
     setTimeout(()=>{ li.classList.add('leaving'); setTimeout(()=>complete(t.id),reduced?0:250); },reduced?0:380);
   };
@@ -479,8 +499,24 @@ function taskEl(t,color){
 }
 function complete(id){
   if(!tasks[id]||tasks[id].done) return;
-  snapshot(); tasks[id].done=true; tasks[id].doneAt=Date.now(); save(); render();
-  toast('Fait ✓',true);
+  snapshot(); tasks[id].done=true; tasks[id].doneAt=Date.now();
+  const pid=tasks[id].parent, closed=pid&&checkMother(pid);
+  save(); render();
+  if(closed){ toast('« '+tasks[pid].title+' » bouclée 🎉',true); confetti(innerWidth/2,innerHeight/3); setTimeout(()=>confetti(innerWidth/3,innerHeight/2),200); }
+  else toast('Fait ✓',true);
+}
+/* ---------- tâches mères (découpées) ----------
+   Une tâche découpée garde split:true et disparaît de la liste. Ses étapes pointent vers elle (parent).
+   Quand toutes les étapes sont faites, elle se coche toute seule. Sans étape, elle redevient normale. */
+const kidsOf=pid=>Object.entries(tasks).filter(([,t])=>t.parent===pid);
+function checkMother(pid){
+  const p=tasks[pid]; if(!p||!p.split) return false;
+  const kids=kidsOf(pid);
+  if(!kids.length){ p.split=false; p.done=false; p.doneAt=null; return false; }
+  const all=kids.every(([,t])=>t.done);
+  if(all&&!p.done){ p.done=true; p.doneAt=Date.now(); return true; }
+  if(!all&&p.done){ p.done=false; p.doneAt=null; }
+  return false;
 }
 
 /* ---------- confettis ---------- */
@@ -546,23 +582,38 @@ function hideSheet(){
   $('#sheet').classList.remove('open'); $('#sheetBg').classList.remove('open');
   if(sheetInHistory){ sheetInHistory=false; history.back(); }
 }
-function openSheet(id){
+function openSheet(id,swap){
   const t=tasks[id]; if(!t) return; editingId=id;
+  const mother=t.split, mum=t.parent&&tasks[t.parent];
+  $('#sheet').classList.toggle('is-mother',!!mother);
+  $('#sheetTitle').textContent=mother?'Tâche découpée':'Modifier';
+  $('#eParentBtn').hidden=!mum; if(mum) $('#eParentBtn').textContent='↳ Fait partie de « '+mum.title+' »';
+  const kb=$('#eKids'); kb.hidden=!mother; kb.innerHTML='';
+  if(mother){ const kids=kidsOf(id).map(([,k])=>k).sort((a,b)=>a.created-b.created), n=kids.filter(k=>k.done).length;
+    const h=document.createElement('b'); h.textContent=n+' sur '+kids.length+' étape'+(kids.length>1?'s':'')+' faite'+(n>1?'s':''); kb.appendChild(h);
+    kids.forEach(k=>{ const d=document.createElement('div'); d.textContent=(k.done?'✓ ':'○ ')+k.title; if(k.done) d.className='k-done'; kb.appendChild(d); }); }
+  $('#eSplitBtn').textContent=mother?'➕ Ajouter des étapes':mum?'✂️ Redécouper cette étape':'✂️ Découper en petites étapes';
+  $('#splitHelp').textContent=mother?'Une étape par ligne. Elles arrivent dans « Quand je peux ».':mum?'Une étape par ligne. La première prend la place de celle-ci.':'Une étape par ligne. La première passe à aujourd’hui.';
+  $('#eDel').textContent=mother?'Supprimer (les étapes restent)':'Supprimer';
   $('#eTitle').value=t.title; $('#eDate').value=t.due||''; $('#eTime').value=t.time||'';
   $('#eParking').textContent=t.idea?'📋 Sortir du parking':'💡 Mettre au parking';
   $('#splitBox').classList.remove('open'); $('#eSplitBtn').setAttribute('aria-expanded','false'); $('#eSteps').value='';
   syncQChips(); updateCal();
-  $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open');
+  $('#sheet').classList.add('open'); $('#sheetBg').classList.add('open'); $('#sheet').scrollTop=0;
   // le bouton retour d'Android ferme la fiche au lieu de quitter l'appli
-  try{ history.pushState({sheet:1},''); sheetInHistory=true; }catch(e){}
+  if(!swap){ try{ history.pushState({sheet:1},''); sheetInHistory=true; }catch(e){} }
   setTimeout(()=>$('#eOk').focus({preventScroll:true}),50);
 }
 function commitSheet(){
   const t=tasks[editingId]; if(!t) return;
   const title=$('#eTitle').value.trim()||t.title; const due=$('#eDate').value||null; const time=due?($('#eTime').value||null):null;
   if(title===t.title && due===t.due && time===t.time) return;
-  snapshot(); t.title=title; setDue(t,due); t.time=time; if(due) t.idea=false; save();
+  snapshot(); t.title=title;
+  if(t.split) kidsOf(editingId).forEach(([,k])=>k.from=title); // le « ↳ » des étapes suit le nouveau nom
+  else { setDue(t,due); t.time=time; if(due) t.idea=false; }
+  save();
 }
+$('#eParentBtn').onclick=()=>{ const t=tasks[editingId]; if(!t||!t.parent) return; commitSheet(); openSheet(t.parent,true); };
 function closeSheet(fromPop){
   if(!editingId) return;
   commitSheet(); const id=editingId; editingId=null;
@@ -585,7 +636,12 @@ function syncQChips(){
 }
 document.querySelectorAll('#eChips .qchip').forEach(c=>c.onclick=()=>{ const w=c.dataset.when; $('#eDate').value=whenToDate(w)||''; if(w==='none') $('#eTime').value=''; if(w==='tonight'&&!$('#eTime').value) $('#eTime').value=TONIGHT; if(w==='today'&&$('#eTime').value>='17:00') $('#eTime').value=''; syncQChips(); updateCal(); });
 ['eDate','eTime','eTitle'].forEach(i=>$('#'+i).addEventListener('input',()=>{ syncQChips(); updateCal(); }));
-$('#eDel').onclick=()=>{ const id=editingId; snapshot(); editingId=null; delete tasks[id]; save(); hideSheet(); render(); toast('Supprimé',true); };
+$('#eDel').onclick=()=>{
+  const id=editingId, t=tasks[id]; snapshot(); editingId=null;
+  if(t.split) kidsOf(id).forEach(([,k])=>k.parent=null); // supprimer la mère garde les étapes
+  delete tasks[id]; if(t.parent) checkMother(t.parent);
+  save(); hideSheet(); render(); toast('Supprimé',true);
+};
 $('#eParking').onclick=()=>{
   commitSheet(); const id=editingId, t=tasks[id]; const before=undoSnap||JSON.stringify(tasks);
   t.idea=!t.idea; if(t.idea){t.due=null;t.time=null;t.moves=0;} save(); undoSnap=before;
@@ -596,12 +652,17 @@ $('#eSplitBtn').onclick=()=>{ const o=$('#splitBox').classList.toggle('open'); $
 $('#eSplitGo').onclick=()=>{
   const steps=$('#eSteps').value.split('\n').map(s=>s.trim()).filter(Boolean);
   if(!steps.length){ $('#eSteps').focus(); return; }
-  const parent=tasks[editingId]; snapshot();
-  const parentTitle=$('#eTitle').value.trim()||parent.title, parentDue=$('#eDate').value||null;
-  const now=Date.now();
-  steps.forEach((s,i)=>{ tasks[newId()+i]={title:s,due:i===0?iso(today0()):(parentDue&&parentDue>iso(today0())?parentDue:null),time:null,done:false,created:now+i,doneAt:null,moves:0,from:parentTitle,idea:false}; });
-  delete tasks[editingId]; editingId=null; save(); hideSheet();
-  render(); toast(steps.length+' étapes créées',true);
+  const cur=tasks[editingId]; snapshot();
+  cur.title=$('#eTitle').value.trim()||cur.title;
+  const today=iso(today0()); let pid, first=null, removeCur=false;
+  if(cur.split){ pid=editingId; }                                                    // ajout d'étapes à une tâche déjà découpée
+  else if(cur.parent&&tasks[cur.parent]){ pid=cur.parent; first=cur.due; removeCur=true; } // une étape redécoupée : ses morceaux rejoignent la même mère
+  else { pid=editingId; first=today; cur.split=true; cur.due=$('#eDate').value||cur.due; cur.time=null; cur.idea=false; } // première découpe
+  const mum=tasks[pid], later=mum.due&&mum.due>today?mum.due:null, now=Date.now();
+  steps.forEach((s,i)=>{ tasks[newId()+i]={title:s,due:i===0&&first!==null?first:later,time:null,done:false,created:now+i,doneAt:null,moves:0,from:mum.title,idea:false,split:false,parent:pid}; });
+  if(removeCur) delete tasks[editingId];
+  checkMother(pid); editingId=null; save(); hideSheet();
+  render(); toast(steps.length+' étape'+(steps.length>1?'s':'')+(cur.split&&!first?' ajoutée':' créée')+(steps.length>1?'s':''),true);
 };
 function calTimes(){
   const date=$('#eDate').value||iso(today0()), time=$('#eTime').value||'09:00';
@@ -674,7 +735,7 @@ async function applyPending(){
   await idbSet('pending',[]);
   let n=0;
   for(const op of ops){ const t=tasks[op.id]; if(!t||t.done) continue;
-    if(op.type==='done'){ t.done=true; t.doneAt=op.at||Date.now(); n++; }
+    if(op.type==='done'){ t.done=true; t.doneAt=op.at||Date.now(); if(t.parent) checkMother(t.parent); n++; }
     if(op.type==='tomorrow'&&op.due){ setDue(t,op.due); t.time=null; n++; } }
   if(n){ save(); if(!editingId) render(); }
 }

@@ -1,5 +1,5 @@
 // Mes trucs : fonctionne hors ligne. Change VERSION à chaque mise à jour du code.
-const VERSION = 'mes-trucs-v8';
+const VERSION = 'mes-trucs-v9';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './sc-add.png', './sc-tonight.png', './sc-today.png', './sc-tomorrow.png', './badge-96.png'];
 
 self.addEventListener('install', e => {
@@ -70,7 +70,7 @@ async function readTasks() { try { return JSON.parse(await idbGet('tasks') || '{
 // Même logique que la carte « Maintenant » : à rattraper + aujourd'hui, sinon un truc sans date
 function pick(tasks) {
   const today = isoDay();
-  const all = Object.entries(tasks).map(([id, t]) => ({ id, ...t })).filter(t => t && !t.done && !t.idea && typeof t.title === 'string');
+  const all = Object.entries(tasks).map(([id, t]) => ({ id, ...t })).filter(t => t && !t.done && !t.idea && !t.split && typeof t.title === 'string');
   const urgent = all.filter(t => t.due && t.due <= today)
     .sort((a, b) => a.due.localeCompare(b.due) || (a.time || '99').localeCompare(b.time || '99') || (a.created || 0) - (b.created || 0));
   if (urgent.length) return { t: urgent[0], others: urgent.length - 1 };

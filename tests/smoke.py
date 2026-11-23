@@ -111,6 +111,34 @@ with sync_playwright() as p:
     pg.reload(); pg.wait_for_timeout(300)
     assert titles(pg) == ["Vieille tâche"], titles(pg)
 
+    # Tâche mère : reste en coulisse, on peut y ajouter une étape oubliée, elle se boucle toute seule
+    pg.evaluate("()=>{localStorage.setItem('mes-trucs-v1','{}');}"); pg.reload(); pg.wait_for_timeout(300)
+    pg.fill("#newTitle", "Préparer le salon"); pg.click("#addBtn"); pg.wait_for_timeout(100)
+    pg.click("li.task .t-body"); pg.wait_for_timeout(300)
+    pg.click("#eSplitBtn"); pg.fill("#eSteps", "Acheter du lait\nAppeler Paul"); pg.click("#eSplitGo"); pg.wait_for_timeout(300)
+    got = titles(pg)
+    assert "Préparer le salon" not in got and "Acheter du lait" in got, got
+    pg.click("li.task:has-text('Appeler Paul') .t-body"); pg.wait_for_timeout(300)
+    assert "Préparer le salon" in pg.text_content("#eParentBtn")
+    pg.click("#eParentBtn"); pg.wait_for_timeout(200)
+    assert "0 sur 2" in pg.text_content("#eKids")
+    pg.click("#eSplitBtn"); pg.fill("#eSteps", "Imprimer les badges"); pg.click("#eSplitGo"); pg.wait_for_timeout(300)
+    assert "Imprimer les badges" in titles(pg)
+    for t in ["Acheter du lait", "Appeler Paul", "Imprimer les badges"]:
+        pg.click(f"li.task:has-text('{t}') .check"); pg.wait_for_timeout(800)
+    assert "bouclée" in pg.text_content("#toastMsg"), pg.text_content("#toastMsg")
+    assert pg.evaluate("Object.values(JSON.parse(localStorage.getItem('mes-trucs-v1'))).find(t=>t.title==='Préparer le salon').done")
+    pg.click("#toastUndo"); pg.wait_for_timeout(200)
+    assert not pg.evaluate("Object.values(JSON.parse(localStorage.getItem('mes-trucs-v1'))).find(t=>t.title==='Préparer le salon').done")
+
+    # Anciennes étapes orphelines : la tâche mère est recréée
+    pg.evaluate("""()=>{localStorage.setItem('mes-trucs-v1',JSON.stringify({a:{title:'Étape 1',from:'Gros projet',done:true,created:5},b:{title:'Étape 2',from:'Gros projet',created:6}}));
+      const m=JSON.parse(localStorage.getItem('mes-trucs-meta'));delete m.mothersV;localStorage.setItem('mes-trucs-meta',JSON.stringify(m));}""")
+    pg.reload(); pg.wait_for_timeout(300)
+    mum = pg.evaluate("Object.values(JSON.parse(localStorage.getItem('mes-trucs-v1'))).filter(t=>t.split).map(t=>t.title)")
+    assert mum == ["Gros projet"], mum
+    assert titles(pg) == ["Étape 2"], titles(pg)
+
     assert not errs, errs
     print("OK : tous les tests passent")
     b.close()
