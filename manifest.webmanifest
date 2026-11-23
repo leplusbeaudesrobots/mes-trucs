@@ -31,19 +31,7 @@
   ],
   "shortcuts": [
     {
-      "name": "Ajouter une tâche",
-      "short_name": "Ajouter",
-      "url": "./?add=1",
-      "icons": [
-        {
-          "src": "sc-add.png",
-          "sizes": "96x96",
-          "type": "image/png"
-        }
-      ]
-    },
-    {
-      "name": "Ajouter pour ce soir",
+      "name": "Ce soir",
       "short_name": "Ce soir",
       "url": "./?add=1&when=tonight",
       "icons": [
@@ -55,7 +43,19 @@
       ]
     },
     {
-      "name": "Ajouter pour aujourd'hui",
+      "name": "Demain",
+      "short_name": "Demain",
+      "url": "./?add=1&when=tomorrow",
+      "icons": [
+        {
+          "src": "sc-tomorrow.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Aujourd'hui",
       "short_name": "Aujourd'hui",
       "url": "./?add=1&when=today",
       "icons": [
@@ -67,12 +67,12 @@
       ]
     },
     {
-      "name": "Ajouter pour demain",
-      "short_name": "Demain",
-      "url": "./?add=1&when=tomorrow",
+      "name": "Un truc",
+      "short_name": "Un truc",
+      "url": "./?add=1",
       "icons": [
         {
-          "src": "sc-tomorrow.png",
+          "src": "sc-add.png",
           "sizes": "96x96",
           "type": "image/png"
         }

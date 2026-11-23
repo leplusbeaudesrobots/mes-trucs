@@ -1,5 +1,5 @@
 // Mes trucs : fonctionne hors ligne. Change VERSION à chaque mise à jour du code.
-const VERSION = 'mes-trucs-v6';
+const VERSION = 'mes-trucs-v7';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './sc-add.png', './sc-tonight.png', './sc-today.png', './sc-tomorrow.png'];
 
 self.addEventListener('install', e => {
