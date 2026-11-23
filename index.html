@@ -181,16 +181,20 @@ textarea.field{min-height:110px;resize:vertical}
     <button class="btn" id="exportBtn" type="button">💾 Sauvegarder (Drive, mail…)</button>
     <label class="btn" for="importFile">📂 Restaurer une sauvegarde<input type="file" id="importFile" accept="application/json,.json" hidden></label>
     <div class="note" id="backupNote"></div>
-    <button class="btn" id="notifBtn" type="button">🔔 Rappel de 18h</button>
+    <button class="btn" id="notifBtn" type="button">🔔 Rappels</button>
     <div class="notif-box" id="notifBox" hidden>
-      <p class="note">Une notification vers 18h avec ton truc du soir. Réglage à faire une seule fois :</p>
+      <p class="note">Un truc du soir à l'heure choisie, seulement s'il y a quelque chose du jour ou à rattraper. Le dimanche, un point sur la semaine à la place.</p>
+      <label class="note" for="notifHour"><b>Heure du rappel</b></label>
+      <select id="notifHour" class="field"></select>
       <ol class="note steps">
         <li>Copie ce code.</li>
-        <li>Sur GitHub : dépôt <b>mes-trucs</b>, Settings, Secrets and variables, Actions, <b>New repository secret</b>.</li>
-        <li>Nom : <b>PUSH_SUBSCRIPTION</b>, colle le code, Add secret.</li>
+        <li>Sur GitHub : dépôt <b>mes-trucs</b>, Settings, Secrets and variables, Actions.</li>
+        <li>Premier téléphone : secret <b>PUSH_1</b>. Deuxième : <b>PUSH_2</b>. Colle le code, Add secret (ou Update s'il existe déjà).</li>
       </ol>
       <textarea id="subOut" class="field" readonly aria-label="Code d'abonnement"></textarea>
+      <p class="note">Tu changes d'heure ? Recopie le code dans le même secret.</p>
       <div class="two"><div><button class="btn" id="subCopy" type="button">📋 Copier</button></div><div><button class="btn" id="notifTest" type="button">Tester</button></div></div>
+      <button class="btn" id="notifPause" type="button">⏸ Pause 7 jours</button>
     </div>
   </div>
   <main id="list"></main>
@@ -740,18 +744,32 @@ async function applyPending(){
   if(n){ save(); if(!editingId) render(); }
 }
 const b64u=s=>{ const p='='.repeat((4-s.length%4)%4), b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b,c=>c.charCodeAt(0)); };
+for(let h=7;h<=22;h++){ const o=document.createElement('option'); o.value=h; o.textContent=h+'h'; $('#notifHour').appendChild(o); }
+let pushSub=null;
+function showCode(){ if(pushSub) $('#subOut').value=JSON.stringify({h:+$('#notifHour').value,s:pushSub}); }
+async function showPause(){
+  let until=0; try{ until=await idbGet('pauseUntil')||0; }catch(e){}
+  const on=until>Date.now(), d=new Date(until);
+  $('#notifPause').textContent=on?'▶️ Reprendre (en pause jusqu’au '+JOURS[d.getDay()]+' '+d.getDate()+')':'⏸ Pause 7 jours';
+  return on;
+}
 $('#notifBtn').onclick=async()=>{
+  if(!$('#notifBox').hidden){ $('#notifBox').hidden=true; return; }
   if(!('Notification' in window)||!('serviceWorker' in navigator)||!('PushManager' in window)){ toast('Ce navigateur ne gère pas les notifications. Installe l’appli depuis Chrome.'); return; }
   const perm=await Notification.requestPermission();
   if(perm!=='granted'){ toast('Notifications bloquées : Paramètres Android, Applis, Mes trucs, Notifications'); return; }
   try{
     const reg=await navigator.serviceWorker.ready;
-    const sub=(await reg.pushManager.getSubscription())||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID_PUBLIC)});
-    $('#subOut').value=JSON.stringify(sub); $('#notifBox').hidden=false; mirror();
+    pushSub=(await reg.pushManager.getSubscription())||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(VAPID_PUBLIC)});
+    $('#notifHour').value=String(meta.notifHour||18); showCode(); $('#notifBox').hidden=false; mirror(); showPause();
   }catch(e){ toast('Abonnement impossible. Réessaie avec du réseau.'); }
 };
+$('#notifHour').addEventListener('change',()=>{ meta.notifHour=+$('#notifHour').value; save(); showCode(); toast('Recopie le code dans ton secret GitHub'); });
 $('#subCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText($('#subOut').value); toast('Copié ✓'); }catch(e){ $('#subOut').select(); toast('Sélectionné : copie-le à la main'); } };
-$('#notifTest').onclick=async()=>{ try{ const reg=await navigator.serviceWorker.ready; mirror(); setTimeout(()=>reg.active.postMessage({type:'test'}),300); toast('Regarde tes notifications'); }catch(e){ toast('Test impossible'); } };
+$('#notifTest').onclick=async()=>{ try{ const reg=await navigator.serviceWorker.ready; mirror();
+  setTimeout(()=>reg.active.postMessage({type:'test',kind:'soir'}),300); setTimeout(()=>reg.active.postMessage({type:'test',kind:'week'}),1500);
+  toast('Deux notifications arrivent : le soir et le dimanche'); }catch(e){ toast('Test impossible'); } };
+$('#notifPause').onclick=async()=>{ try{ const on=await showPause(); await idbSet('pauseUntil',on?0:Date.now()+7*86400000); await showPause(); toast(on?'Rappels repris':'Rappels en pause 7 jours'); }catch(e){ toast('Impossible'); } };
 if('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message',e=>{ if(e.data&&e.data.type==='pending') applyPending(); });
 
 /* ---------- ajout rapide (raccourcis) ---------- */

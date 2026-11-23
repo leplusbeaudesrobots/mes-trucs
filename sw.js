@@ -1,5 +1,5 @@
 // Mes trucs : fonctionne hors ligne. Change VERSION à chaque mise à jour du code.
-const VERSION = 'mes-trucs-v9';
+const VERSION = 'mes-trucs-v10';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './sc-add.png', './sc-tonight.png', './sc-today.png', './sc-tomorrow.png', './badge-96.png'];
 
 self.addEventListener('install', e => {
@@ -57,8 +57,8 @@ self.addEventListener('fetch', e => {
   }
 });
 
-/* ---------- Rappel de 18h ----------
-   GitHub envoie un signal vide vers 18h. Ici, on choisit la tâche dans la copie IndexedDB
+/* ---------- Rappels (soir + dimanche) ----------
+   GitHub envoie un signal à l'heure choisie (« soir », ou « week » le dimanche). Ici, on choisit la tâche dans la copie IndexedDB
    tenue par l'appli : les tâches ne quittent jamais le téléphone. */
 function idb() { return new Promise((res, rej) => { const r = indexedDB.open('mes-trucs', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
 async function idbGet(k) { const db = await idb(); return new Promise(res => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => res(undefined); }); }
@@ -67,32 +67,63 @@ const pad = n => String(n).padStart(2, '0');
 const isoDay = (plus = 0) => { const d = new Date(); d.setDate(d.getDate() + plus); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
 async function readTasks() { try { return JSON.parse(await idbGet('tasks') || '{}') || {}; } catch (e) { return {}; } }
 
-// Même logique que la carte « Maintenant » : à rattraper + aujourd'hui, sinon un truc sans date
+// Rappel du soir : seulement les tâches à rattraper ou du jour (même logique que la carte « Maintenant »)
+const live = tasks => Object.entries(tasks).map(([id, t]) => ({ id, ...t })).filter(t => t && !t.done && !t.idea && !t.split && typeof t.title === 'string');
 function pick(tasks) {
   const today = isoDay();
-  const all = Object.entries(tasks).map(([id, t]) => ({ id, ...t })).filter(t => t && !t.done && !t.idea && !t.split && typeof t.title === 'string');
-  const urgent = all.filter(t => t.due && t.due <= today)
+  const urgent = live(tasks).filter(t => t.due && t.due <= today)
     .sort((a, b) => a.due.localeCompare(b.due) || (a.time || '99').localeCompare(b.time || '99') || (a.created || 0) - (b.created || 0));
-  if (urgent.length) return { t: urgent[0], others: urgent.length - 1 };
-  const free = all.filter(t => !t.due).sort((a, b) => (a.created || 0) - (b.created || 0));
-  if (free.length) return { t: free[0], free: true };
-  return null;
+  return urgent[0] || null;
+}
+const any = a => a[Math.floor(Math.random() * a.length)];
+// Des formulations qui changent, pour que l'œil ne s'habitue pas à la même alerte
+const SOIR = ['Ton truc du soir', 'Juste celui-là', 'Un truc, et c’est plié', '10 minutes pour celui-là ?', 'Le seul qui compte ce soir'];
+const BASE = { icon: 'icon-192.png', badge: 'badge-96.png', lang: 'fr' };
+
+// Rien à montrer (soir vide, pause) : Chrome exige quand même une notification.
+// On l'affiche sans son ni vibration, puis on l'enlève tout de suite après (au mieux).
+async function quiet(title) {
+  await self.registration.showNotification(title, { ...BASE, tag: 'calme', silent: true, renotify: false });
+  setTimeout(() => self.registration.getNotifications({ tag: 'calme' }).then(ns => ns.forEach(n => n.close())), 4000);
 }
 
 async function showEvening() {
-  const p = pick(await readTasks());
-  const base = { icon: 'icon-192.png', badge: 'badge-96.png', tag: 'soir', renotify: true, lang: 'fr' };
-  if (!p) return self.registration.showNotification('Rien d’urgent ce soir ✌️', { ...base, body: 'Profite.' });
-  const body = p.free ? 'Si t’as 10 minutes ce soir'
-    : 'Ton truc du soir' + (p.others ? ' · ' + p.others + ' autre' + (p.others > 1 ? 's' : '') + ' en attente, sans pression' : '');
-  return self.registration.showNotification(p.t.title, {
-    ...base, body, data: { id: p.t.id },
+  const t = pick(await readTasks());
+  if (!t) return quiet('Rien d’urgent ce soir ✌️');
+  return self.registration.showNotification(t.title, {
+    ...BASE, tag: 'soir', renotify: true, body: any(SOIR), data: { id: t.id },
     actions: [{ action: 'done', title: 'C’est fait ✓' }, { action: 'tomorrow', title: 'Demain' }]
   });
 }
 
-self.addEventListener('push', e => e.waitUntil(showEvening()));
-self.addEventListener('message', e => { if (e.data && e.data.type === 'test') e.waitUntil(showEvening()); });
+// Point du dimanche : un coup d'œil sur la semaine, qui ouvre l'appli
+async function showWeek() {
+  const all = live(await readTasks()), today = isoDay(), in7 = isoDay(7);
+  const late = all.filter(t => t.due && t.due < today).length, week = all.filter(t => t.due && t.due >= today && t.due <= in7).length;
+  const free = all.filter(t => !t.due).length;
+  if (!late && !week && !free) return quiet('Semaine toute propre ✌️');
+  const bits = [];
+  if (week) bits.push(week + ' prévu' + (week > 1 ? 's' : '') + ' cette semaine');
+  if (late) bits.push(late + ' à rattraper');
+  if (free) bits.push(free + ' sans date');
+  return self.registration.showNotification(any(['Point du dimanche', 'On prépare la semaine ?', 'Petit tri du dimanche']), {
+    ...BASE, tag: 'semaine', renotify: true, body: bits.join(' · ') + '. 5 minutes pour trier ?', data: { open: true }
+  });
+}
+
+async function onSignal(kind) {
+  const pause = await idbGet('pauseUntil').catch(() => 0);
+  if (pause && Date.now() < pause) return quiet('Rappels en pause');
+  return kind === 'week' ? showWeek() : showEvening();
+}
+
+self.addEventListener('push', e => {
+  let kind = 'soir'; try { kind = (e.data && e.data.json().type) || 'soir'; } catch (err) {}
+  e.waitUntil(onSignal(kind));
+});
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'test') e.waitUntil(e.data.kind === 'week' ? showWeek() : showEvening());
+});
 
 async function act(type, id) {
   if (!id) return;

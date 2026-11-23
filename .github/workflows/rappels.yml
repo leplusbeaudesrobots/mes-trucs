@@ -1,0 +1,73 @@
+# Rappels de Mes trucs. Passe toutes les heures et envoie un signal à chaque téléphone à l'heure qu'il a choisie
+# (heure de Paris, été comme hiver). Le dimanche, le signal demande le point de la semaine.
+# Le signal ne contient aucune tâche : c'est le téléphone qui choisit quoi afficher.
+# Secrets (Settings, Secrets and variables, Actions) :
+#   VAPID_PRIVATE_KEY         clé privée, donnée une seule fois
+#   PUSH_1, PUSH_2, PUSH_3    un code par téléphone, copié depuis l'appli (menu ⋯, Rappels)
+#   PUSH_SUBSCRIPTION         ancien nom, toujours accepté (18h)
+name: Rappels
+
+on:
+  schedule:
+    - cron: '52 * * * *'    # 8 minutes avant chaque heure (GitHub démarre souvent en retard)
+  workflow_dispatch:
+    inputs:
+      heure:
+        description: "Forcer une heure (ex. 18) pour tester tout de suite. Vide = toutes les heures choisies."
+        required: false
+
+permissions:
+  actions: write            # pour garder les rappels actifs (GitHub coupe les tâches planifiées après 60 jours sans activité)
+
+jobs:
+  rappels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Envoyer les signaux de cette heure
+        env:
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          PUSH_1: ${{ secrets.PUSH_1 }}
+          PUSH_2: ${{ secrets.PUSH_2 }}
+          PUSH_3: ${{ secrets.PUSH_3 }}
+          PUSH_SUBSCRIPTION: ${{ secrets.PUSH_SUBSCRIPTION }}
+          FORCE: ${{ github.event.inputs.heure }}
+          MANUEL: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          npm install --no-save --silent web-push@3.6.7
+          node -e '
+            const wp = require("web-push");
+            if (!process.env.VAPID_PRIVATE_KEY) { console.error("::error::Secret VAPID_PRIVATE_KEY manquant"); process.exit(1); }
+            wp.setVapidDetails("https://leplusbeaudesrobots.github.io/mes-trucs/",
+              "BHbhhF3hPD7ZntGN8L4N0CdwZUw8XNneOCwMo6JiUBC_0Y3c9HS41qujO5rV68pn-nwLb0XJzpA7izMWbx9O9_M",
+              process.env.VAPID_PRIVATE_KEY);
+            // Heure de Paris visée : celle qui commence dans quelques minutes (tolère jusqu’à 1 h de retard de GitHub)
+            const fmt = o => new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", ...o }).format(new Date(Date.now() + 9 * 60000));
+            const heure = parseInt(fmt({ hour: "2-digit", hourCycle: "h23" }), 10), dimanche = fmt({ weekday: "long" }) === "Sunday";
+            console.log("Paris : " + heure + "h" + (dimanche ? ", dimanche" : ""));
+            const manuel = process.env.MANUEL === "true", force = process.env.FORCE ? +process.env.FORCE : null;
+            const telephones = ["PUSH_1", "PUSH_2", "PUSH_3", "PUSH_SUBSCRIPTION"].map(k => [k, process.env[k]]).filter(([, v]) => v);
+            if (!telephones.length) { console.error("::error::Aucun téléphone : crée le secret PUSH_1"); process.exit(1); }
+            let echec = false;
+            (async () => {
+              for (const [nom, brut] of telephones) {
+                let code; try { code = JSON.parse(brut); } catch (e) { console.error("::error::" + nom + " : code illisible, recopie-le depuis l’appli"); echec = true; continue; }
+                const abo = code.s || code, h = code.h || 18;
+                const vise = force !== null ? force : (manuel ? h : heure);
+                if (h !== vise) { console.log(nom + " : rappel à " + h + "h, pas maintenant."); continue; }
+                try {
+                  const r = await wp.sendNotification(abo, JSON.stringify({ type: dimanche ? "week" : "soir" }), { TTL: 3 * 3600, urgency: "high" });
+                  console.log(nom + " : envoyé (" + r.statusCode + ")" + (dimanche ? ", point du dimanche" : ""));
+                } catch (e) {
+                  echec = true;
+                  console.error("::error::" + nom + " : échec " + e.statusCode + (e.statusCode === 404 || e.statusCode === 410
+                    ? ". Abonnement expiré : dans l’appli, menu ⋯, Rappels, puis recolle le code dans " + nom + "." : " " + e.body));
+                }
+              }
+              process.exit(echec ? 1 : 0);
+            })();'
+
+      - name: Garder les rappels actifs
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/rappels.yml/enable" || true
